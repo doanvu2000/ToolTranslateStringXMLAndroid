@@ -1,0 +1,23 @@
+{
+    "vi": {
+        "save": "lưu",
+        "delete": "xóa",
+        "share": "chia sẻ",
+        "next": "tiếp theo",
+        "cancel": "hủy"
+    },
+    "en": {
+        "save": "save",
+        "delete": "delete",
+        "share": "share",
+        "next": "next",
+        "cancel": "cancel"
+    },
+    "es": {
+        "save": "guardar",
+        "delete": "eliminar",
+        "share": "compartir",
+        "next": "siguiente",
+        "cancel": "cancelar"
+    }
+}

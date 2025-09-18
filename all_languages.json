@@ -1,0 +1,298 @@
+[
+  {
+    "isoCode": "af",
+    "name": "Afrikaans"
+  },
+  {
+    "isoCode": "am",
+    "name": "Amharic"
+  },
+  {
+    "isoCode": "ar",
+    "name": "Arabic"
+  },
+  {
+    "isoCode": "as",
+    "name": "Assamese"
+  },
+  {
+    "isoCode": "az",
+    "name": "Azerbaijani"
+  },
+  {
+    "isoCode": "be",
+    "name": "Belarusian"
+  },
+  {
+    "isoCode": "bg",
+    "name": "Bulgarian"
+  },
+  {
+    "isoCode": "bn",
+    "name": "Bengali"
+  },
+  {
+    "isoCode": "bs",
+    "name": "Bosnian"
+  },
+  {
+    "isoCode": "ca",
+    "name": "Catalan"
+  },
+  {
+    "isoCode": "cs",
+    "name": "Czech"
+  },
+  {
+    "isoCode": "da",
+    "name": "Danish"
+  },
+  {
+    "isoCode": "de",
+    "name": "German"
+  },
+  {
+    "isoCode": "el",
+    "name": "Greek"
+  },
+  {
+    "isoCode": "en",
+    "name": "English"
+  },
+  {
+    "isoCode": "es",
+    "name": "Spanish"
+  },
+  {
+    "isoCode": "et",
+    "name": "Estonian"
+  },
+  {
+    "isoCode": "eu",
+    "name": "Basque"
+  },
+  {
+    "isoCode": "fa",
+    "name": "Farsi"
+  },
+  {
+    "isoCode": "fi",
+    "name": "Finnish"
+  },
+  {
+    "isoCode": "fil",
+    "name": "Filipino"
+  },
+  {
+    "isoCode": "fr",
+    "name": "French"
+  },
+  {
+    "isoCode": "gl",
+    "name": "Galician"
+  },
+  {
+    "isoCode": "gu",
+    "name": "Gujarati"
+  },
+  {
+    "isoCode": "hi",
+    "name": "Hindi"
+  },
+  {
+    "isoCode": "hr",
+    "name": "Croatian"
+  },
+  {
+    "isoCode": "hu",
+    "name": "Hungarian"
+  },
+  {
+    "isoCode": "hy",
+    "name": "Armenian"
+  },
+  {
+    "isoCode": "id",
+    "name": "Indonesian"
+  },
+  {
+    "isoCode": "is",
+    "name": "Icelandic"
+  },
+  {
+    "isoCode": "it",
+    "name": "Italian"
+  },
+  {
+    "isoCode": "iw",
+    "name": "Hebrew"
+  },
+  {
+    "isoCode": "ja",
+    "name": "Japanese"
+  },
+  {
+    "isoCode": "ka",
+    "name": "Georgian"
+  },
+  {
+    "isoCode": "kk",
+    "name": "Kazakh"
+  },
+  {
+    "isoCode": "km",
+    "name": "Khmer"
+  },
+  {
+    "isoCode": "kn",
+    "name": "Kannada"
+  },
+  {
+    "isoCode": "ko",
+    "name": "Korean"
+  },
+  {
+    "isoCode": "ky",
+    "name": "Kyrgyz"
+  },
+  {
+    "isoCode": "lo",
+    "name": "Lao"
+  },
+  {
+    "isoCode": "lt",
+    "name": "Lithuanian"
+  },
+  {
+    "isoCode": "lv",
+    "name": "Latvian"
+  },
+  {
+    "isoCode": "mk",
+    "name": "Macedonian"
+  },
+  {
+    "isoCode": "ml",
+    "name": "Malayalam"
+  },
+  {
+    "isoCode": "mn",
+    "name": "Mongolian"
+  },
+  {
+    "isoCode": "mr",
+    "name": "Marathi"
+  },
+  {
+    "isoCode": "ms",
+    "name": "Malay"
+  },
+  {
+    "isoCode": "my",
+    "name": "Burmese"
+  },
+  {
+    "isoCode": "nb",
+    "name": "Norwegian"
+  },
+  {
+    "isoCode": "ne",
+    "name": "Nepali"
+  },
+  {
+    "isoCode": "nl",
+    "name": "Dutch"
+  },
+  {
+    "isoCode": "or",
+    "name": "Odia"
+  },
+  {
+    "isoCode": "pa",
+    "name": "Punjabi"
+  },
+  {
+    "isoCode": "pl",
+    "name": "Polish"
+  },
+  {
+    "isoCode": "pt",
+    "name": "Portuguese"
+  },
+  {
+    "isoCode": "ro",
+    "name": "Romanian"
+  },
+  {
+    "isoCode": "ru",
+    "name": "Russian"
+  },
+  {
+    "isoCode": "si",
+    "name": "Sinhala"
+  },
+  {
+    "isoCode": "sk",
+    "name": "Slovak"
+  },
+  {
+    "isoCode": "sl",
+    "name": "Slovenian"
+  },
+  {
+    "isoCode": "sq",
+    "name": "Albanian"
+  },
+  {
+    "isoCode": "sr",
+    "name": "Serbian"
+  },
+  {
+    "isoCode": "sv",
+    "name": "Swedish"
+  },
+  {
+    "isoCode": "sw",
+    "name": "Swahili"
+  },
+  {
+    "isoCode": "ta",
+    "name": "Tamil"
+  },
+  {
+    "isoCode": "te",
+    "name": "Telugu"
+  },
+  {
+    "isoCode": "th",
+    "name": "Thai"
+  },
+  {
+    "isoCode": "tr",
+    "name": "Turkish"
+  },
+  {
+    "isoCode": "uk",
+    "name": "Ukrainian"
+  },
+  {
+    "isoCode": "ur",
+    "name": "Urdu"
+  },
+  {
+    "isoCode": "uz",
+    "name": "Uzbek"
+  },
+  {
+    "isoCode": "vi",
+    "name": "Vietnamese"
+  },
+  {
+    "isoCode": "zh-CN",
+    "name": "Chinese"
+  },
+  {
+    "isoCode": "zu",
+    "name": "Zulu"
+  }
+]

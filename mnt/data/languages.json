@@ -1,0 +1,106 @@
+[
+  {
+    "isoCode": "ar",
+    "name": "Arabic"
+  },
+  {
+    "isoCode": "cs",
+    "name": "Czech"
+  },
+  {
+    "isoCode": "da",
+    "name": "Danish"
+  },
+  {
+    "isoCode": "de",
+    "name": "German"
+  },
+  {
+    "isoCode": "el",
+    "name": "Greek"
+  },
+  {
+    "isoCode": "en",
+    "name": "English"
+  },
+  {
+    "isoCode": "es",
+    "name": "Spanish"
+  },
+  {
+    "isoCode": "et",
+    "name": "Estonian"
+  },
+  {
+    "isoCode": "eu",
+    "name": "Basque"
+  },
+  {
+    "isoCode": "fi",
+    "name": "Finnish"
+  },
+  {
+    "isoCode": "fr",
+    "name": "French"
+  },
+  {
+    "isoCode": "hi",
+    "name": "Hindi"
+  },
+  {
+    "isoCode": "hr",
+    "name": "Croatian"
+  },
+  {
+    "isoCode": "hu",
+    "name": "Hungarian"
+  },
+  {
+    "isoCode": "hy",
+    "name": "Armenian"
+  },
+  {
+    "isoCode": "id",
+    "name": "Indonesian"
+  },
+  {
+    "isoCode": "it",
+    "name": "Italian"
+  },
+  {
+    "isoCode": "ja",
+    "name": "Japanese"
+  },
+  {
+    "isoCode": "ka",
+    "name": "Georgian"
+  },
+  {
+    "isoCode": "ko",
+    "name": "Korean"
+  },
+  {
+    "isoCode": "mn",
+    "name": "Mongolian"
+  },
+  {
+    "isoCode": "ms",
+    "name": "Malay"
+  },
+  {
+    "isoCode": "nl",
+    "name": "Dutch"
+  },
+  {
+    "isoCode": "pl",
+    "name": "Polish"
+  },
+  {
+    "isoCode": "pt",
+    "name": "Portuguese"
+  },
+  {
+    "isoCode": "zh-CN",
+    "name": "Chinese"
+  }
+]

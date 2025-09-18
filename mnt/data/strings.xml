@@ -1,0 +1,50 @@
+<resources>
+    <string name="app_name" translatable="false">Precision Challenge</string>
+    <string name="txt_trending">Trending</string>
+    <string name="txt_my_videos">My Videos</string>
+    <string name="txt_no_videos_yet">No Videos Yet</string>
+    <string name="txt_description_empty_my_videos">Let’s add some awesome videos and bring this space to life! 🎬✨</string>
+    <string name="txt_let_s_play_game">Let’s play game</string>
+    <string name="txt_share">Share</string>
+    <string name="txt_save">Save</string>
+    <string name="txt_watch_ads_splash">Love this app? Watch an ad ❤️</string>
+    <string name="txt_try_now">Try now</string>
+    <string name="txt_permission_required">Permissions Required</string>
+    <string name="txt_need_permission">Please grant permissions for camera, audio, and storage access</string>
+    <string name="txt_later">Later</string>
+    <string name="txt_settings">Settings</string>
+    <string name="txt_sounds">Sounds</string>
+    <string name="txt_flip">Flip</string>
+    <string name="txt_timer">Timer</string>
+    <string name="txt_select_language">Select language</string>
+    <string name="txt_preview">Preview</string>
+    <string name="txt_next">Next</string>
+    <string name="txt_result">Result</string>
+    <string name="txt_try_other_funny_filter">Try Other Funny Filter</string>
+    <string name="txt_delete">Delete</string>
+
+    <string name="txt_failed_to_load_data">Failed to Load Data</string>
+    <string name="txt_failed_load_data_des">Failed to load data. It could be due to a weak connection or a system error.</string>
+    <string name="txt_try_again">Try Again</string>
+    <string name="txt_playground">PlayGround</string>
+    <string name="txt_select_character">Select character</string>
+    <string name="txt_select">Select</string>
+    <string name="txt_pick_filter_and_have_fun">Pick filter and have fun!</string>
+
+    <string name="txt_intro_des_1">One snip, endless funny fashion looks</string>
+    <string name="txt_intro_des_2">Discover the cutest, craziest, and weirdest hugs!</string>
+    <string name="txt_intro_des_3">🎉 Color Blind Challenge – can you spot the odd color out?</string>
+    <string name="txt_intro_des_4">Discover if your lips, nose, or eyes match another nation.</string>
+    <string name="txt_intro_des_5">🎉 Prediction: One tap to reveal your destiny</string>
+    <string name="txt_intro_des_6">Lip Color: Match the shade and prove your vision skills.</string>
+
+    <string name="txt_save_video_success">Save success</string>
+    <string name="txt_save_video_failed">Save failed</string>
+    <!--dialog exit app-->
+    <string name="txt_exit_app_title">Exit app</string>
+    <string name="txt_exit_app_confirm">Do you want to exit app?</string>
+    <string name="txt_exit">Exit</string>
+    <string name="txt_cancel">Cancel</string>
+    <string name="txt_choose_sounds">Choose Sounds</string>
+    <string name="txt_add_music">Add Music</string>
+</resources>
