@@ -26,9 +26,9 @@ def load_xml(file_path):
 # Chuyển đổi văn bản về chữ thường để tránh phân biệt hoa thường
 def apply_case_correction(original, translated):
     # Nếu từ gốc có chữ hoa đầu tiên, giữ lại chữ hoa cho từ dịch
-    if original.istitle():
-        return translated.capitalize()
-    return translated.lower()
+    if original.istitle():  # Nếu chữ đầu câu trong văn bản gốc viết hoa
+        return translated.capitalize()  # Chữ đầu câu trong bản dịch cũng phải viết hoa
+    return translated.lower()  # Nếu không, dịch chữ thường
 
 
 # Dịch văn bản (kiểm tra trong từ điển theo từng ngôn ngữ)
@@ -57,6 +57,10 @@ def translate_text(text, dest_lang, manual_dict):
 
 # Lưu kết quả dịch vào tệp XML trong thư mục tương ứng với isoCode
 def save_translated_xml(root, isoCode, output_dir):
+    # Xử lý trường hợp ngôn ngữ Trung Quốc: dùng "zh" thay vì "zh-CN" hay "zh-TW"
+    if isoCode.startswith("zh"):
+        isoCode = "zh"  # Chuẩn hóa thành "zh" cho tiếng Trung Quốc
+
     # Tạo thư mục values-isoCode nếu chưa có
     folder_path = os.path.join(output_dir, f"values-{isoCode}")
     os.makedirs(folder_path, exist_ok=True)
@@ -119,6 +123,7 @@ def process_strings(input_xml_path, languages_json_path, manual_dict_path, outpu
 
         # In thông báo hoàn thành
         print_progress_done(language_name, iso_code, duration)
+
 
 if __name__ == "__main__":
     input_xml_path = "mnt/data/strings.xml"  # Đường dẫn tệp XML gốc

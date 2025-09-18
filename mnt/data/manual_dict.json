@@ -1,23 +1,272 @@
 {
-    "vi": {
-        "save": "lưu",
-        "delete": "xóa",
-        "share": "chia sẻ",
-        "next": "tiếp theo",
-        "cancel": "hủy"
-    },
-    "en": {
-        "save": "save",
-        "delete": "delete",
-        "share": "share",
-        "next": "next",
-        "cancel": "cancel"
-    },
-    "es": {
-        "save": "guardar",
-        "delete": "eliminar",
-        "share": "compartir",
-        "next": "siguiente",
-        "cancel": "cancelar"
-    }
+  "vi": {
+    "save": "lưu",
+    "delete": "xóa",
+    "share": "chia sẻ",
+    "next": "tiếp theo",
+    "cancel": "hủy",
+    "edit": "chỉnh sửa",
+    "settings": "cài đặt",
+    "exit": "thoát"
+  },
+  "en": {
+    "save": "save",
+    "delete": "delete",
+    "share": "share",
+    "next": "next",
+    "cancel": "cancel",
+    "edit": "edit",
+    "settings": "settings",
+    "exit": "exit"
+  },
+  "es": {
+    "save": "guardar",
+    "delete": "eliminar",
+    "share": "compartir",
+    "next": "siguiente",
+    "cancel": "cancelar",
+    "edit": "editar",
+    "settings": "configuración",
+    "exit": "salir"
+  },
+  "fr": {
+    "save": "enregistrer",
+    "delete": "supprimer",
+    "share": "partager",
+    "next": "suivant",
+    "cancel": "annuler",
+    "edit": "modifier",
+    "settings": "paramètres",
+    "exit": "quitter"
+  },
+  "de": {
+    "save": "speichern",
+    "delete": "löschen",
+    "share": "teilen",
+    "next": "weiter",
+    "cancel": "abbrechen",
+    "edit": "bearbeiten",
+    "settings": "einstellungen",
+    "exit": "beenden"
+  },
+  "pt": {
+    "save": "salvar",
+    "delete": "deletar",
+    "share": "compartilhar",
+    "next": "próximo",
+    "cancel": "cancelar",
+    "edit": "editar",
+    "settings": "configurações",
+    "exit": "sair"
+  },
+  "ru": {
+    "save": "сохранить",
+    "delete": "удалить",
+    "share": "поделиться",
+    "next": "следующий",
+    "cancel": "отменить",
+    "edit": "редактировать",
+    "settings": "настройки",
+    "exit": "выход"
+  },
+  "zh": {
+    "save": "保存",
+    "delete": "删除",
+    "share": "分享",
+    "next": "下一步",
+    "cancel": "取消",
+    "edit": "编辑",
+    "settings": "设置",
+    "exit": "退出"
+  },
+  "ar": {
+    "save": "حفظ",
+    "delete": "حذف",
+    "share": "مشاركة",
+    "next": "التالي",
+    "cancel": "إلغاء",
+    "edit": "تعديل",
+    "settings": "الإعدادات",
+    "exit": "خروج"
+  },
+  "it": {
+    "save": "salvare",
+    "delete": "eliminare",
+    "share": "condividere",
+    "next": "prossimo",
+    "cancel": "annullare",
+    "edit": "modificare",
+    "settings": "impostazioni",
+    "exit": "uscita"
+  },
+  "ja": {
+    "save": "保存",
+    "delete": "削除",
+    "share": "シェア",
+    "next": "次へ",
+    "cancel": "キャンセル",
+    "edit": "編集",
+    "settings": "設定",
+    "exit": "終了"
+  },
+  "ko": {
+    "save": "저장",
+    "delete": "삭제",
+    "share": "공유",
+    "next": "다음",
+    "cancel": "취소",
+    "edit": "편집",
+    "settings": "설정",
+    "exit": "종료"
+  },
+  "tr": {
+    "save": "kaydet",
+    "delete": "sil",
+    "share": "paylaş",
+    "next": "sonraki",
+    "cancel": "iptal",
+    "edit": "düzenle",
+    "settings": "ayarlar",
+    "exit": "çıkış"
+  },
+  "uk": {
+    "save": "зберегти",
+    "delete": "видалити",
+    "share": "поділитися",
+    "next": "наступний",
+    "cancel": "скасувати",
+    "edit": "редагувати",
+    "settings": "налаштування",
+    "exit": "вихід"
+  },
+  "zh-CN": {
+    "save": "儲存",
+    "delete": "刪除",
+    "share": "分享",
+    "next": "下一步",
+    "cancel": "取消",
+    "edit": "編輯",
+    "settings": "設定",
+    "exit": "退出"
+  },
+  "ms": {
+    "save": "simpannya",
+    "delete": "padam",
+    "share": "kongsi",
+    "next": "seterusnya",
+    "cancel": "batalkan",
+    "edit": "sunting",
+    "settings": "tetapan",
+    "exit": "keluar"
+  },
+  "my": {
+    "save": "သိမ်းမ",
+    "delete": "ဖျက်မ",
+    "share": "မျှဝေ",
+    "next": "နောက်တစ်ခု",
+    "cancel": "မလုပ်တော့ဘူး",
+    "edit": "တည်းဖြတ်မ",
+    "settings": "အစီအစဉ်များ",
+    "exit": "ထွက်ရန်"
+  },
+  "nb": {
+    "save": "lagre",
+    "delete": "slett",
+    "share": "dele",
+    "next": "neste",
+    "cancel": "avbryt",
+    "edit": "redigere",
+    "settings": "innstillinger",
+    "exit": "exit"
+  },
+  "ne": {
+    "save": "सेभ गर्नुहोस्",
+    "delete": "मेटाउनुहोस्",
+    "share": "साझा गर्नुहोस्",
+    "next": "अर्को",
+    "cancel": "रद्ध गर्नुहोस्",
+    "edit": "सम्पादन गर्नुहोस्",
+    "settings": "सेटिङ",
+    "exit": "बाहिर जानुहोस्"
+  },
+  "nl": {
+    "save": "opslaan",
+    "delete": "verwijderen",
+    "share": "delen",
+    "next": "volgende",
+    "cancel": "annuleren",
+    "edit": "bewerken",
+    "settings": "instellingen",
+    "exit": "afsluiten"
+  },
+  "or": {
+    "save": "ସେଭ୍",
+    "delete": "ମିଟାନ୍ତୁ",
+    "share": "ସେୟାର୍",
+    "next": "ପରବର୍ତ୍ତୀ",
+    "cancel": "ବାତିଲ୍",
+    "edit": "ସମ୍ପାଦନ କରନ୍ତୁ",
+    "settings": "ସେଟିଂ",
+    "exit": "ବାହାର"
+  },
+  "pa": {
+    "save": "ਸੇਵ",
+    "delete": "ਮਿਟਾਓ",
+    "share": "ਸ਼ੇਅਰ",
+    "next": "ਅਗਲਾ",
+    "cancel": "ਰੱਦ ਕਰੋ",
+    "edit": "ਸੰਪਾਦਨ",
+    "settings": "ਸੈਟਿੰਗਸ",
+    "exit": "ਬਾਹਰ ਜਾਓ"
+  },
+  "pl": {
+    "save": "zapisz",
+    "delete": "usuń",
+    "share": "udostępnij",
+    "next": "następny",
+    "cancel": "anuluj",
+    "edit": "edytować",
+    "settings": "ustawienia",
+    "exit": "wyjście"
+  },
+  "ro": {
+    "save": "salvează",
+    "delete": "șterge",
+    "share": "partajează",
+    "next": "următorul",
+    "cancel": "anulați",
+    "edit": "editează",
+    "settings": "setări",
+    "exit": "ieșire"
+  },
+  "sr-Latn": {
+    "save": "spasiti",
+    "delete": "obrisati",
+    "share": "deliti",
+    "next": "sledeći",
+    "cancel": "otkazati",
+    "edit": "urediti",
+    "settings": "podešavanja",
+    "exit": "izlaz"
+  },
+  "sv": {
+    "save": "spara",
+    "delete": "radera",
+    "share": "dela",
+    "next": "nästa",
+    "cancel": "avbryt",
+    "edit": "redigera",
+    "settings": "inställningar",
+    "exit": "avsluta"
+  },
+  "sw": {
+    "save": "hifadhi",
+    "delete": "futa",
+    "share": "shiriki",
+    "next": "seterusnya",
+    "cancel": "ghairi",
+    "edit": "hariri",
+    "settings": "mipangilio",
+    "exit": "kutoka"
+  }
 }
