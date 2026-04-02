@@ -2,146 +2,232 @@ import os
 import xml.etree.ElementTree as ET
 import json
 import time
-from googletrans import Translator
+import sys
+import threading
+import copy
+from concurrent.futures import ThreadPoolExecutor
+from deep_translator import GoogleTranslator
+
+# --- CONFIG ---
+MAX_THREADS = 6
+TRANSLATE_DELAY = 0.5  # minimum seconds between any two API calls (global, across all threads)
+
+progress_lock = threading.Lock()
+thread_status = {i: "" for i in range(MAX_THREADS)}
+
+# --- GLOBAL RATE LIMITER ---
+_rate_lock = threading.Lock()
+_last_call_time = 0.0
 
 
-# Hàm tải cấu hình manual_dict từ file JSON
-def load_manual_dict(file_path):
-    with open(file_path, 'r', encoding='utf-8') as f:
-        return json.load(f)
+def throttled_translate(text, dest):
+    """Call Google Translate with a global minimum delay between requests."""
+    global _last_call_time
+    with _rate_lock:
+        now = time.time()
+        wait = TRANSLATE_DELAY - (now - _last_call_time)
+        if wait > 0:
+            time.sleep(wait)
+        _last_call_time = time.time()
+    return GoogleTranslator(source='en', target=dest).translate(text)
 
 
-# Hàm tải danh sách ngôn ngữ từ file JSON
-def load_languages_from_json(file_path):
-    with open(file_path, 'r', encoding='utf-8') as f:
-        return json.load(f)
-
-
-# Hàm tải tệp XML gốc
-def load_xml(file_path):
-    tree = ET.parse(file_path)
-    return tree.getroot()
-
-
-# Hàm để escape dấu nháy đơn trong văn bản
-def escape_single_quotes(text):
-    return text.replace("'", "\\'")
-
-
-# Hàm để áp dụng chữ hoa đầu cho văn bản dịch nếu cần
-def apply_case_correction(original, translated):
-    # Nếu từ gốc có chữ hoa đầu tiên, giữ lại chữ hoa cho từ dịch
-    if original.istitle():  # Nếu chữ đầu câu trong văn bản gốc viết hoa
-        return translated.capitalize()  # Chữ đầu câu trong bản dịch cũng phải viết hoa
-    return translated.lower()  # Nếu không, dịch chữ thường
-
-
-# Hàm dịch văn bản dựa trên manual_dict và Google Translate
-def translate_text(text, dest_lang, manual_dict):
-    original_text = text
-    text = text.lower()  # Chuyển văn bản sang chữ thường
-
-    # Kiểm tra nếu văn bản có trong manual_dict cho ngôn ngữ này
-    if dest_lang in manual_dict:
-        for word, translated_word in manual_dict[dest_lang].items():
-            text = text.replace(word, translated_word)
-
-    # Dùng Google Translate nếu cần thiết
-    translator = Translator()
+def load_json(file_path):
+    if not os.path.exists(file_path): return {}
     try:
-        translated = translator.translate(text, dest=dest_lang)
-        translated_text = translated.text
+        with open(file_path, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    except:
+        return {}
 
-        # Áp dụng lại chữ hoa đầu từ nếu cần
-        translated_text = apply_case_correction(original_text, translated_text)
 
-        # Escape dấu nháy đơn trong kết quả dịch
-        return escape_single_quotes(translated_text)
+def save_json(data, file_path):
+    with open(file_path, 'w', encoding='utf-8') as f:
+        json.dump(data, f, ensure_ascii=False, indent=4)
+
+
+def escape_special_chars(text):
+    if not text: return ""
+    return text.replace("'", "\\'").replace('"', '\\"')
+
+
+def apply_manual_dict(text, iso_code, manual_dict):
+    """Apply manual dictionary overrides before calling Google Translate."""
+    if iso_code not in manual_dict:
+        return text
+    lowered = text.lower()
+    for word, translated_word in manual_dict[iso_code].items():
+        lowered = lowered.replace(word, translated_word)
+    return lowered
+
+
+def refresh_console():
+    with progress_lock:
+        output = [thread_status[i] for i in range(MAX_THREADS) if thread_status[i]]
+        if output:
+            sys.stdout.write("\r" + " | ".join(output) + "\033[K")
+            sys.stdout.flush()
+
+
+def translate_language(thread_idx, iso_code, language_name, input_xml_path, res_dir, translation_memory, manual_dict):
+    android_iso = 'zh' if iso_code.startswith('zh') else iso_code
+    dest_folder = os.path.join(res_dir, f"values-{android_iso}")
+    dest_file = os.path.join(dest_folder, "strings.xml")
+
+    if iso_code not in translation_memory:
+        translation_memory[iso_code] = {}
+    mem = translation_memory[iso_code]
+
+    try:
+        # --- BƯỚC 1: ĐỌC FILE GỐC (CHỈ ĐỌC) ---
+        base_tree = ET.parse(input_xml_path)
+        base_root = base_tree.getroot()
+
+        base_keys = {}  # key -> text_goc
+        for s in base_root.findall('string'):
+            name = s.get('name')
+            if name: base_keys[name] = s.text
+        for arr in base_root.findall('string-array'):
+            name = arr.get('name')
+            if name: base_keys[f"arr_{name}"] = [item.text for item in arr.findall('item')]
+
+        # --- BƯỚC 2: ĐỌC FILE ĐÍCH ĐỂ SO SÁNH (NẾU CÓ) ---
+        existing_translated = {}
+        deleted_count = 0
+        if os.path.exists(dest_file):
+            target_tree = ET.parse(dest_file)
+            target_root = target_tree.getroot()
+            for s in target_root.findall('string'):
+                name = s.get('name')
+                if name in base_keys:
+                    if s.text and s.text != base_keys[name]:
+                        existing_translated[name] = s.text
+                else:
+                    deleted_count += 1
+
+            for arr in target_root.findall('string-array'):
+                name = arr.get('name')
+                if f"arr_{name}" in base_keys:
+                    items = [item.text for item in arr.findall('item')]
+                    existing_translated[f"arr_{name}"] = items
+                else:
+                    deleted_count += 1
+
+        # --- BƯỚC 3: TẠO FILE DỊCH MỚI (DỰA TRÊN CLONE CỦA GỐC) ---
+        new_root = copy.deepcopy(base_root)
+
+        all_elements = []
+        for s in new_root.findall('string'):
+            if s.get('translatable') != "false": all_elements.append(('str', s))
+        for arr in new_root.findall('string-array'):
+            if arr.get('translatable') != "false": all_elements.append(('arr', arr))
+
+        total_task = len(all_elements)
+        new_count = 0
+        update_count = 0
+        old_keep_count = 0
+
+        for idx, (etype, elem) in enumerate(all_elements, start=1):
+            percent = int((idx / total_task) * 100)
+            thread_status[thread_idx] = f"⏳ {language_name[:3]}: {percent}%"
+            refresh_console()
+
+            name = elem.get('name')
+            if etype == 'str':
+                raw_text = elem.text.strip() if elem.text else ""
+                if name in existing_translated:
+                    elem.text = existing_translated[name]
+                    old_keep_count += 1
+                elif raw_text in mem:
+                    elem.text = escape_special_chars(mem[raw_text])
+                    update_count += 1
+                else:
+                    try:
+                        text_to_translate = apply_manual_dict(raw_text, iso_code, manual_dict)
+                        res = throttled_translate(text_to_translate, iso_code)
+                        mem[raw_text] = res
+                        elem.text = escape_special_chars(res)
+                        new_count += 1
+                    except Exception as e:
+                        with progress_lock:
+                            sys.stdout.write(f"\n⚠ [{iso_code}] '{raw_text[:30]}': {e}\033[K\n")
+                            sys.stdout.flush()
+
+            elif etype == 'arr':
+                arr_items = elem.findall('item')
+                old_items = existing_translated.get(f"arr_{name}", [])
+                base_arr_texts = base_keys.get(f"arr_{name}", [])
+
+                for i, item in enumerate(arr_items):
+                    raw_item = item.text.strip() if item.text else ""
+                    if i < len(old_items) and old_items[i] and old_items[i] != base_arr_texts[i]:
+                        item.text = old_items[i]
+                        old_keep_count += 1
+                    elif raw_item in mem:
+                        item.text = escape_special_chars(mem[raw_item])
+                        update_count += 1
+                    else:
+                        try:
+                            text_to_translate = apply_manual_dict(raw_item, iso_code, manual_dict)
+                            res = throttled_translate(text_to_translate, iso_code)
+                            mem[raw_item] = res
+                            item.text = escape_special_chars(res)
+                            new_count += 1
+                        except Exception as e:
+                            with progress_lock:
+                                sys.stdout.write(f"\n⚠ [{iso_code}] '{raw_item[:30]}': {e}\033[K\n")
+                                sys.stdout.flush()
+
+        # --- BƯỚC 4: GHI FILE VÀO THƯ MỤC NGÔN NGỮ ĐÍCH ---
+        os.makedirs(dest_folder, exist_ok=True)
+        with open(dest_file, 'wb') as f:
+            f.write(b'<?xml version="1.0" encoding="utf-8"?>\n')
+            ET.ElementTree(new_root).write(f, encoding="utf-8", xml_declaration=False)
+
+        with progress_lock:
+            thread_status[thread_idx] = ""
+            sys.stdout.write(
+                f"\r✅ {language_name:12} | Mới: {new_count:2} | Up: {update_count:2} | Cũ: {old_keep_count:2} | Xoá: {deleted_count:2}\033[K\n")
+            sys.stdout.flush()
+
     except Exception as e:
-        print(f"Error translating '{text}' to {dest_lang}: {e}")
-        return text  # Trả về văn bản gốc nếu có lỗi
+        with progress_lock:
+            thread_status[thread_idx] = ""
+            sys.stdout.write(f"\r❌ {language_name:12} | Lỗi: {str(e)[:20]}\033[K\n")
 
 
-# Hàm chuẩn hóa mã ISO cho tiếng Trung
-def normalize_chinese_iso(iso_code):
-    if iso_code.startswith('zh'):
-        return 'zh'  # Chuẩn hóa mọi mã ISO bắt đầu bằng 'zh' thành 'zh'
-    return iso_code
+def main(input_arg):
+    input_xml = os.path.join(input_arg, "strings.xml") if os.path.isdir(input_arg) else input_arg
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    lang_path = os.path.join(base_dir, "all_languages.json")
+    memory_path = os.path.join(base_dir, "translation_memory.json")
+    manual_dict_path = os.path.join(base_dir, "mnt/data/manual_dict.json")
+    res_dir = os.path.dirname(os.path.dirname(input_xml))
 
+    languages = load_json(lang_path)
+    memory = load_json(memory_path)
+    manual_dict = load_json(manual_dict_path)
 
-# Hàm lưu kết quả dịch vào tệp XML trong thư mục values-{isoCode}
-def save_translated_xml(root, isoCode, output_dir):
-    # Chuẩn hóa mã ISO cho tiếng Trung
-    isoCode = normalize_chinese_iso(isoCode)
+    print(f"🚀 SYNC MODE (PROTECTED ORIGIN)")
+    print("=" * 80)
 
-    # Tạo thư mục values-isoCode nếu chưa có
-    folder_path = os.path.join(output_dir, f"values-{isoCode}")
-    os.makedirs(folder_path, exist_ok=True)
+    with ThreadPoolExecutor(max_workers=MAX_THREADS) as executor:
+        for i, lang in enumerate(languages):
+            executor.submit(
+                translate_language,
+                i % MAX_THREADS,
+                lang["isoCode"],
+                lang["name"],
+                input_xml,
+                res_dir,
+                memory,
+                manual_dict,
+            )
 
-    # Tạo cây XML mới và lưu lại
-    new_tree = ET.ElementTree(root)
-    output_path = os.path.join(folder_path, "strings.xml")
-    new_tree.write(output_path, encoding="utf-8", xml_declaration=True)
-
-
-# Hàm in thông báo bắt đầu và kết thúc quá trình dịch cho từng ngôn ngữ
-def print_progress_start(language_name, iso_code):
-    print(f"---------------{language_name}({iso_code})==> START---------------")
-
-
-def print_progress_done(language_name, iso_code, duration):
-    print(f"---------------{language_name}({iso_code})==> done in values-{iso_code}---------------({duration:.2f}ms)")
-
-
-# Hàm xử lý các chuỗi văn bản trong tệp XML và dịch chúng
-def process_strings(input_xml_path, languages_json_path, manual_dict_path, output_dir):
-    # Đọc cấu hình manual_dict từ file JSON
-    manual_dict = load_manual_dict(manual_dict_path)
-
-    # Đọc danh sách ngôn ngữ từ file JSON
-    languages = load_languages_from_json(languages_json_path)
-
-    # Lặp qua từng ngôn ngữ để dịch riêng biệt
-    for lang in languages:
-        iso_code = lang["isoCode"]
-        language_name = lang["name"]
-
-        # In thông báo bắt đầu quá trình dịch cho ngôn ngữ
-        print_progress_start(language_name, iso_code)
-
-        # Ghi thời gian bắt đầu
-        start_time = time.time()
-
-        # Load tệp XML gốc
-        root = load_xml(input_xml_path)
-
-        # Lặp qua từng phần tử <string> trong XML và dịch văn bản cho từng ngôn ngữ
-        for string_elem in root.findall('string'):
-            # Kiểm tra thuộc tính translatable, nếu là "false" thì bỏ qua
-            translatable = string_elem.get('translatable')
-            if translatable and translatable.lower() == "false":
-                continue  # Bỏ qua các phần tử không thể dịch
-
-            # Dịch văn bản cho ngôn ngữ hiện tại
-            translated_text = translate_text(string_elem.text, iso_code, manual_dict)
-            string_elem.text = translated_text  # Cập nhật văn bản dịch
-
-        # Lưu kết quả dịch vào thư mục values-{isoCode} sau khi dịch hoàn thành
-        save_translated_xml(root, iso_code, output_dir)
-
-        # Ghi thời gian kết thúc và tính toán thời gian
-        end_time = time.time()
-        duration = (end_time - start_time) * 1000  # Thời gian tính bằng milliseconds
-
-        # In thông báo hoàn thành
-        print_progress_done(language_name, iso_code, duration)
+    save_json(memory, memory_path)
+    print("\n" + "=" * 80 + "\n✨ HOÀN THÀNH!")
 
 
 if __name__ == "__main__":
-    input_xml_path = "mnt/data/strings.xml"  # Đường dẫn tệp XML gốc
-    languages_json_path = "mnt/data/languages.json"  # Đường dẫn tệp JSON chứa ngôn ngữ
-    manual_dict_path = "mnt/data/manual_dict.json"  # Đường dẫn tệp JSON chứa manual_dict
-    output_dir = "mnt/data/output"  # Thư mục lưu các tệp strings.xml dịch
-
-    process_strings(input_xml_path, languages_json_path, manual_dict_path, output_dir)
-    print("Hoàn thành dịch. Kiểm tra các thư mục kết quả.")
+    if len(sys.argv) > 1:
+        main(sys.argv[1])
