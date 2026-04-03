@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python3 -c \"import xml.etree.ElementTree as ET; help\\(ET.tostring\\)\")",
+      "Bash(python -c \"import xml.etree.ElementTree as ET; help\\(ET.tostring\\)\")",
+      "Bash(python3 -c \"import xml.etree.ElementTree as ET; print\\(ET.VERSION\\)\")",
+      "Bash(python -c \"import xml.etree.ElementTree as ET; print\\(ET.VERSION\\)\")",
+      "Bash(python -m venv .venv_test)",
+      "Bash(.venv_test/Scripts/pip install:*)",
+      "Bash(PYTHONIOENCODING=utf-8 .venv_test/Scripts/python test_special_cases.py)"
+    ]
+  }
+}
