@@ -6,6 +6,7 @@ import sys
 import threading
 import re
 import html as html_lib
+import argparse
 from concurrent.futures import ThreadPoolExecutor
 from deep_translator import GoogleTranslator
 
@@ -36,17 +37,29 @@ thread_status = {i: "" for i in range(MAX_THREADS)}
 _rate_lock = threading.Lock()
 _last_call_time = 0.0
 
+# --- TRANSLATION MEMORY LOCK ---
+_memory_lock = threading.Lock()
 
-def throttled_translate(text, dest):
-    """Call Google Translate with a global minimum delay between requests."""
+
+def throttled_translate(text, dest, retries=3):
+    """Call Google Translate with a global minimum delay between requests.
+    Retries up to `retries` times with exponential backoff on failure."""
     global _last_call_time
-    with _rate_lock:
-        now = time.time()
-        wait = TRANSLATE_DELAY - (now - _last_call_time)
-        if wait > 0:
-            time.sleep(wait)
-        _last_call_time = time.time()
-    return GoogleTranslator(source='en', target=dest).translate(text)
+    last_exc = None
+    for attempt in range(retries):
+        with _rate_lock:
+            now = time.time()
+            wait = TRANSLATE_DELAY - (now - _last_call_time)
+            if wait > 0:
+                time.sleep(wait)
+            _last_call_time = time.time()
+        try:
+            return GoogleTranslator(source='en', target=dest).translate(text)
+        except Exception as e:
+            last_exc = e
+            if attempt < retries - 1:
+                time.sleep(2 ** attempt)  # 1s, 2s before retry 2, 3
+    raise last_exc
 
 
 def load_json(file_path):
@@ -54,7 +67,10 @@ def load_json(file_path):
     try:
         with open(file_path, 'r', encoding='utf-8') as f:
             return json.load(f)
-    except:
+    except FileNotFoundError:
+        return {}
+    except (json.JSONDecodeError, ValueError) as e:
+        print(f"⚠️  Cảnh báo: file JSON lỗi '{file_path}': {e}")
         return {}
 
 
@@ -106,13 +122,15 @@ def restore_translatables(text, ph_map):
 # ---------------------------------------------------------------------------
 
 def apply_manual_dict(text, iso_code, manual_dict):
-    """Apply manual dictionary overrides before calling Google Translate."""
+    """Apply manual dictionary overrides before calling Google Translate.
+    Uses word-boundary matching (case-insensitive) to avoid false positives."""
     if iso_code not in manual_dict:
         return text
-    lowered = text.lower()
+    result = text
     for word, translated_word in manual_dict[iso_code].items():
-        lowered = lowered.replace(word, translated_word)
-    return lowered
+        pattern = re.compile(r'\b' + str(re.escape(word)) + r'\b', re.IGNORECASE)
+        result = pattern.sub(translated_word, result)
+    return result
 
 
 # ---------------------------------------------------------------------------
@@ -203,7 +221,10 @@ def translate_string(raw_text, iso_code, manual_dict):
         return raw_text
     protected, ph_map = protect_translatables(raw_text)
     text_for_api = apply_manual_dict(protected, iso_code, manual_dict)
-    translated = throttled_translate(text_for_api, iso_code)
+    try:
+        translated = throttled_translate(text_for_api, iso_code) or protected
+    except Exception:
+        translated = protected  # fallback: giữ nguyên bản gốc, không trả về text đã lowercase
     if ph_map:
         translated = restore_translatables(translated, ph_map)
     return translated
@@ -231,8 +252,9 @@ def translate_language(thread_idx, iso_code, language_name, input_xml_path, res_
     dest_folder = os.path.join(res_dir, f"values-{android_iso}")
     dest_file = os.path.join(dest_folder, "strings.xml")
 
-    if iso_code not in translation_memory:
-        translation_memory[iso_code] = {}
+    with _memory_lock:
+        if iso_code not in translation_memory:
+            translation_memory[iso_code] = {}
     mem = translation_memory[iso_code]
 
     try:
@@ -252,6 +274,10 @@ def translate_language(thread_idx, iso_code, language_name, input_xml_path, res_
             name = arr.get('name')
             if name:
                 base_keys[f"arr_{name}"] = [get_inner_xml(item) for item in arr.findall('item')]
+        for plu in base_root.findall('plurals'):
+            name = plu.get('name')
+            if name:
+                base_keys[f"plu_{name}"] = [get_inner_xml(item) for item in plu.findall('item')]
 
         # --- BƯỚC 2: ĐỌC FILE ĐÍCH ĐỂ SO SÁNH (NẾU CÓ) ---
         existing_translated = {}
@@ -279,6 +305,14 @@ def translate_language(thread_idx, iso_code, language_name, input_xml_path, res_
                 else:
                     deleted_count += 1
 
+            for plu in target_root.findall('plurals'):
+                name = plu.get('name')
+                if f"plu_{name}" in base_keys:
+                    items_inner = [get_inner_xml(item) for item in plu.findall('item')]
+                    existing_translated[f"plu_{name}"] = items_inner
+                else:
+                    deleted_count += 1
+
         # --- BƯỚC 3: TẠO FILE DỊCH MỚI (DỰA TRÊN CLONE CỦA GỐC) ---
         new_root = ET.fromstring(clean_source)  # fresh copy from preprocessed source
 
@@ -289,6 +323,9 @@ def translate_language(thread_idx, iso_code, language_name, input_xml_path, res_
         for arr in new_root.findall('string-array'):
             if arr.get('translatable') != "false":
                 all_elements.append(('arr', arr))
+        for plu in new_root.findall('plurals'):
+            if plu.get('translatable') != "false":
+                all_elements.append(('plu', plu))
 
         total_task = len(all_elements)
         new_count = update_count = old_keep_count = 0
@@ -354,6 +391,30 @@ def translate_language(thread_idx, iso_code, language_name, input_xml_path, res_
                                 sys.stdout.write(f"\n⚠ [{iso_code}] '{raw_item[:30]}': {e}\033[K\n")
                                 sys.stdout.flush()
 
+            elif etype == 'plu':
+                plu_items = elem.findall('item')
+                old_items = existing_translated.get(f"plu_{name}", [])
+                base_plu = base_keys.get(f"plu_{name}", [])
+
+                for i, item in enumerate(plu_items):
+                    raw_item = get_inner_xml(item).strip()
+                    if i < len(old_items) and old_items[i] and old_items[i] != (base_plu[i] if i < len(base_plu) else ""):
+                        set_inner_xml(item, old_items[i])
+                        old_keep_count += 1
+                    elif raw_item in mem:
+                        set_inner_xml(item, escape_android_chars(mem[raw_item]))
+                        update_count += 1
+                    else:
+                        try:
+                            translated = translate_string(raw_item, iso_code, manual_dict)
+                            mem[raw_item] = translated
+                            set_inner_xml(item, escape_android_chars(translated))
+                            new_count += 1
+                        except Exception as e:
+                            with progress_lock:
+                                sys.stdout.write(f"\n⚠ [{iso_code}] '{raw_item[:30]}': {e}\033[K\n")
+                                sys.stdout.flush()
+
         # --- BƯỚC 4: GHI FILE VÀO THƯ MỤC NGÔN NGỮ ĐÍCH ---
         os.makedirs(dest_folder, exist_ok=True)
         with open(dest_file, 'wb') as f:
@@ -375,35 +436,54 @@ def translate_language(thread_idx, iso_code, language_name, input_xml_path, res_
             sys.stdout.write(f"\r❌ {language_name:12} | Lỗi: {str(e)[:60]}\033[K\n")
 
 
-def main(input_arg):
+def main(input_arg, lang_path=None, manual_dict_path=None, output_dir=None, threads=None):
     input_xml = os.path.join(input_arg, "strings.xml") if os.path.isdir(input_arg) else input_arg
     base_dir = os.path.dirname(os.path.abspath(__file__))
-    lang_path = os.path.join(base_dir, "all_languages.json")
+
+    if lang_path is None:
+        lang_path = os.path.join(base_dir, "all_languages.json")
+    if manual_dict_path is None:
+        manual_dict_path = os.path.join(base_dir, "mnt/data/manual_dict.json")
+    if output_dir is None:
+        output_dir = os.path.dirname(os.path.dirname(input_xml))
+    if threads is None:
+        threads = MAX_THREADS
+
     memory_path = os.path.join(base_dir, "translation_memory.json")
-    manual_dict_path = os.path.join(base_dir, "mnt/data/manual_dict.json")
-    res_dir = os.path.dirname(os.path.dirname(input_xml))
+
+    if not os.path.isfile(input_xml):
+        print(f"❌ Không tìm thấy file nguồn: {input_xml}")
+        sys.exit(1)
 
     languages = load_json(lang_path)
+    if not languages:
+        print(f"❌ Danh sách ngôn ngữ trống hoặc không đọc được: {lang_path}")
+        sys.exit(1)
+
     memory = load_json(memory_path)
     manual_dict = load_json(manual_dict_path)
 
     # Detect CDATA element names once from the source file
-    with open(input_xml, 'r', encoding='utf-8') as f:
-        source_xml_text = f.read()
+    try:
+        with open(input_xml, 'r', encoding='utf-8') as f:
+            source_xml_text = f.read()
+    except OSError as e:
+        print(f"❌ Không đọc được file nguồn: {e}")
+        sys.exit(1)
     cdata_names = extract_cdata_names(source_xml_text)
 
     print(f"🚀 SYNC MODE (PROTECTED ORIGIN)")
     print("=" * 80)
 
-    with ThreadPoolExecutor(max_workers=MAX_THREADS) as executor:
+    with ThreadPoolExecutor(max_workers=threads) as executor:
         for i, lang in enumerate(languages):
             executor.submit(
                 translate_language,
-                i % MAX_THREADS,
+                i % threads,
                 lang["isoCode"],
                 lang["name"],
                 input_xml,
-                res_dir,
+                output_dir,
                 memory,
                 manual_dict,
                 cdata_names,
@@ -414,5 +494,36 @@ def main(input_arg):
 
 
 if __name__ == "__main__":
-    if len(sys.argv) > 1:
-        main(sys.argv[1])
+    parser = argparse.ArgumentParser(
+        description="Dịch Android strings.xml sang nhiều ngôn ngữ qua Google Translate."
+    )
+    parser.add_argument(
+        "source",
+        help="Đường dẫn tới strings.xml hoặc thư mục chứa nó",
+    )
+    parser.add_argument(
+        "--languages", "-l",
+        metavar="PATH",
+        help="Đường dẫn tới languages.json (mặc định: all_languages.json kế bên script)",
+    )
+    parser.add_argument(
+        "--manual-dict", "-m",
+        metavar="PATH",
+        dest="manual_dict",
+        help="Đường dẫn tới manual_dict.json (mặc định: mnt/data/manual_dict.json)",
+    )
+    parser.add_argument(
+        "--output", "-o",
+        metavar="DIR",
+        help="Thư mục output chứa các values-xx/ (mặc định: thư mục cha của source)",
+    )
+    parser.add_argument(
+        "--threads", "-t",
+        metavar="N",
+        type=int,
+        default=MAX_THREADS,
+        help=f"Số luồng dịch song song (mặc định: {MAX_THREADS})",
+    )
+    args = parser.parse_args()
+    main(args.source, lang_path=args.languages, manual_dict_path=args.manual_dict,
+         output_dir=args.output, threads=args.threads)

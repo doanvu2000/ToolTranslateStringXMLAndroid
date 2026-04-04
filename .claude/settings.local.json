@@ -7,7 +7,10 @@
       "Bash(python -c \"import xml.etree.ElementTree as ET; print\\(ET.VERSION\\)\")",
       "Bash(python -m venv .venv_test)",
       "Bash(.venv_test/Scripts/pip install:*)",
-      "Bash(PYTHONIOENCODING=utf-8 .venv_test/Scripts/python test_special_cases.py)"
+      "Bash(PYTHONIOENCODING=utf-8 .venv_test/Scripts/python test_special_cases.py)",
+      "Bash(python test_special_cases.py)",
+      "Bash(python -c \"import sys; sys.stdout.reconfigure\\(encoding='utf-8'\\)\")",
+      "Bash(PYTHONIOENCODING=utf-8 python test_special_cases.py)"
     ]
   }
 }
