@@ -30,7 +30,6 @@ PASS = "✅ PASS"
 FAIL = "❌ FAIL"
 results = []
 
-
 def check(name, actual, expected):
     ok = actual == expected
     status = PASS if ok else FAIL

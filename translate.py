@@ -11,7 +11,7 @@ from concurrent.futures import ThreadPoolExecutor
 from deep_translator import GoogleTranslator
 
 # --- CONFIG ---
-MAX_THREADS = 8
+MAX_THREADS = 10
 TRANSLATE_DELAY = 0.5  # minimum seconds between any two API calls (global, across all threads)
 
 # --- PATTERNS ---
