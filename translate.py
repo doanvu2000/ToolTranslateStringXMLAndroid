@@ -259,7 +259,8 @@ def refresh_console():
 # ---------------------------------------------------------------------------
 
 def translate_language(thread_idx, iso_code, language_name, input_xml_path, res_dir,
-                       translation_memory, manual_dict, cdata_names, lang_results):
+                       translation_memory, manual_dict, cdata_names, lang_results, memory_path,
+                       manual_dict_path):
     android_iso = 'zh' if iso_code.startswith('zh') else iso_code
     dest_folder = os.path.join(res_dir, f"values-{android_iso}")
     dest_file = os.path.join(dest_folder, "strings.xml")
@@ -437,6 +438,11 @@ def translate_language(thread_idx, iso_code, language_name, input_xml_path, res_
         postprocess_cdata(dest_file, cdata_names)
 
         lang_results[iso_code] = ('pass', language_name)
+        with _memory_lock:
+            if iso_code not in manual_dict:
+                manual_dict[iso_code] = {}
+            manual_dict[iso_code].update(translation_memory.get(iso_code, {}))
+            save_json(manual_dict, manual_dict_path)
         with progress_lock:
             thread_status[thread_idx] = ""
             sys.stdout.write(
@@ -524,6 +530,8 @@ def main(input_arg, lang_path=None, manual_dict_path=None, output_dir=None, thre
                 manual_dict,
                 cdata_names,
                 lang_results,
+                memory_path,
+                manual_dict_path,
             )
 
     save_json(memory, memory_path)
