@@ -11,7 +11,7 @@ from concurrent.futures import ThreadPoolExecutor
 from deep_translator import GoogleTranslator
 
 # --- CONFIG ---
-MAX_THREADS = 6
+MAX_THREADS = 8
 TRANSLATE_DELAY = 0.5  # minimum seconds between any two API calls (global, across all threads)
 
 # --- PATTERNS ---
@@ -234,6 +234,18 @@ def translate_string(raw_text, iso_code, manual_dict):
 # Console helpers
 # ---------------------------------------------------------------------------
 
+def format_duration(seconds):
+    """Format seconds into human-readable string."""
+    seconds = int(seconds)
+    if seconds < 60:
+        return f"{seconds}s"
+    m, s = divmod(seconds, 60)
+    if m < 60:
+        return f"{m}m{s:02d}s"
+    h, m = divmod(m, 60)
+    return f"{h}h{m:02d}m{s:02d}s"
+
+
 def refresh_console():
     with progress_lock:
         output = [thread_status[i] for i in range(MAX_THREADS) if thread_status[i]]
@@ -247,7 +259,7 @@ def refresh_console():
 # ---------------------------------------------------------------------------
 
 def translate_language(thread_idx, iso_code, language_name, input_xml_path, res_dir,
-                       translation_memory, manual_dict, cdata_names):
+                       translation_memory, manual_dict, cdata_names, lang_results):
     android_iso = 'zh' if iso_code.startswith('zh') else iso_code
     dest_folder = os.path.join(res_dir, f"values-{android_iso}")
     dest_file = os.path.join(dest_folder, "strings.xml")
@@ -424,6 +436,7 @@ def translate_language(thread_idx, iso_code, language_name, input_xml_path, res_
         # Re-wrap CDATA elements that were stripped by ET during parsing
         postprocess_cdata(dest_file, cdata_names)
 
+        lang_results[iso_code] = ('pass', language_name)
         with progress_lock:
             thread_status[thread_idx] = ""
             sys.stdout.write(
@@ -431,6 +444,7 @@ def translate_language(thread_idx, iso_code, language_name, input_xml_path, res_
             sys.stdout.flush()
 
     except Exception as e:
+        lang_results[iso_code] = ('fail', language_name, str(e))
         with progress_lock:
             thread_status[thread_idx] = ""
             sys.stdout.write(f"\r❌ {language_name:12} | Lỗi: {str(e)[:60]}\033[K\n")
@@ -472,8 +486,30 @@ def main(input_arg, lang_path=None, manual_dict_path=None, output_dir=None, thre
         sys.exit(1)
     cdata_names = extract_cdata_names(source_xml_text)
 
+    # Count translatable strings from source
+    source_tree = ET.fromstring(preprocess_cdata(source_xml_text))
+    translatable_count = sum(
+        1 for s in source_tree.findall('string') if s.get('translatable') != 'false'
+    ) + sum(
+        len(arr.findall('item'))
+        for arr in source_tree.findall('string-array') if arr.get('translatable') != 'false'
+    ) + sum(
+        len(plu.findall('item'))
+        for plu in source_tree.findall('plurals') if plu.get('translatable') != 'false'
+    )
+
+    num_languages = len(languages)
+    # Worst-case estimate: all strings need API calls, rate limited globally
+    estimated_seconds = translatable_count * num_languages * TRANSLATE_DELAY
+
     print(f"🚀 SYNC MODE (PROTECTED ORIGIN)")
     print("=" * 80)
+    print(f"📊 Ngôn ngữ: {num_languages} | Luồng đồng thời: {threads} | Strings/ngôn ngữ: {translatable_count}")
+    print(f"⏱  Thời gian dự kiến (worst-case): {format_duration(estimated_seconds)}")
+    print("=" * 80)
+
+    start_time = time.time()
+    lang_results = {}
 
     with ThreadPoolExecutor(max_workers=threads) as executor:
         for i, lang in enumerate(languages):
@@ -487,10 +523,28 @@ def main(input_arg, lang_path=None, manual_dict_path=None, output_dir=None, thre
                 memory,
                 manual_dict,
                 cdata_names,
+                lang_results,
             )
 
     save_json(memory, memory_path)
-    print("\n" + "=" * 80 + "\n✨ HOÀN THÀNH!")
+
+    actual_seconds = time.time() - start_time
+    diff_seconds = actual_seconds - estimated_seconds
+    diff_str = (f"+{format_duration(diff_seconds)} (chậm hơn)" if diff_seconds > 0
+                else f"-{format_duration(abs(diff_seconds))} (nhanh hơn)")
+
+    passed = [v[1] for v in lang_results.values() if v[0] == 'pass']
+    failed = [(v[1], v[2]) for v in lang_results.values() if v[0] == 'fail']
+
+    print("\n" + "=" * 80)
+    print(f"✨ HOÀN THÀNH!")
+    print(f"   ✅ Pass : {len(passed)}/{num_languages} ngôn ngữ")
+    if failed:
+        print(f"   ❌ Fail : {len(failed)} ngôn ngữ")
+        for name, err in failed:
+            print(f"      • {name}: {err[:80]}")
+    print(f"   ⏱  Thực tế: {format_duration(actual_seconds)} | Dự kiến: {format_duration(estimated_seconds)} | Lệch: {diff_str}")
+    print("=" * 80)
 
 
 if __name__ == "__main__":
