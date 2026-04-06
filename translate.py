@@ -1,12 +1,13 @@
-import os
-import xml.etree.ElementTree as ET
+import argparse
+import html as html_lib
 import json
-import time
+import os
+import re
+import sqlite3
 import sys
 import threading
-import re
-import html as html_lib
-import argparse
+import time
+import xml.etree.ElementTree as ET
 from concurrent.futures import ThreadPoolExecutor
 
 try:
@@ -15,7 +16,7 @@ except ModuleNotFoundError:
     GoogleTranslator = None
 
 # --- CONFIG ---
-MAX_THREADS = 10
+MAX_THREADS = 8
 TRANSLATE_DELAY = 0.5  # minimum seconds between any two API calls (global, across all threads)
 
 # --- PATTERNS ---
@@ -41,8 +42,47 @@ thread_status = {i: "" for i in range(MAX_THREADS)}
 _rate_lock = threading.Lock()
 _last_call_time = 0.0
 
-# --- TRANSLATION MEMORY LOCK ---
-_memory_lock = threading.Lock()
+class TranslationCache:
+    def __init__(self, db_path):
+        self.db_path = db_path
+        self.lock = threading.Lock()
+        self.conn = sqlite3.connect(db_path, check_same_thread=False)
+        self.conn.execute("PRAGMA journal_mode=WAL")
+        self.conn.execute("PRAGMA synchronous=NORMAL")
+        self.conn.execute("""
+            CREATE TABLE IF NOT EXISTS translations (
+                iso_code TEXT NOT NULL,
+                source_text TEXT NOT NULL,
+                translated_text TEXT NOT NULL,
+                PRIMARY KEY (iso_code, source_text)
+            )
+        """)
+        self.conn.commit()
+
+    def get(self, iso_code, source_text):
+        with self.lock:
+            row = self.conn.execute(
+                "SELECT translated_text FROM translations WHERE iso_code = ? AND source_text = ?",
+                (iso_code, source_text),
+            ).fetchone()
+        return row[0] if row else None
+
+    def set(self, iso_code, source_text, translated_text):
+        with self.lock:
+            self.conn.execute(
+                """
+                INSERT INTO translations (iso_code, source_text, translated_text)
+                VALUES (?, ?, ?)
+                ON CONFLICT(iso_code, source_text)
+                DO UPDATE SET translated_text = excluded.translated_text
+                """,
+                (iso_code, source_text, translated_text),
+            )
+            self.conn.commit()
+
+    def close(self):
+        with self.lock:
+            self.conn.close()
 
 
 def throttled_translate(text, dest, retries=3):
@@ -82,11 +122,6 @@ def load_json(file_path):
         return {}
 
 
-def save_json(data, file_path):
-    with open(file_path, 'w', encoding='utf-8') as f:
-        json.dump(data, f, ensure_ascii=False, indent=4)
-
-
 def escape_android_chars(text):
     """Escape ' and \" as required by Android string resources."""
     if not text:
@@ -123,22 +158,6 @@ def restore_translatables(text, ph_map):
     for ph, original in ph_map.items():
         text = text.replace(ph, original)
     return text
-
-
-# ---------------------------------------------------------------------------
-# Manual dictionary
-# ---------------------------------------------------------------------------
-
-def apply_manual_dict(text, iso_code, manual_dict):
-    """Apply manual dictionary overrides before calling Google Translate.
-    Uses word-boundary matching (case-insensitive) to avoid false positives."""
-    if iso_code not in manual_dict:
-        return text
-    result = text
-    for word, translated_word in manual_dict[iso_code].items():
-        pattern = re.compile(r'\b' + str(re.escape(word)) + r'\b', re.IGNORECASE)
-        result = pattern.sub(translated_word, result)
-    return result
 
 
 # ---------------------------------------------------------------------------
@@ -220,7 +239,7 @@ def postprocess_cdata(dest_file, cdata_names):
 # Core translate helper
 # ---------------------------------------------------------------------------
 
-def translate_string(raw_text, iso_code, manual_dict):
+def translate_string(raw_text, iso_code):
     """
     Translate a string, preserving HTML tags and format specifiers.
     Returns raw translated text (NOT yet Android-escaped).
@@ -228,9 +247,8 @@ def translate_string(raw_text, iso_code, manual_dict):
     if not raw_text.strip():
         return raw_text
     protected, ph_map = protect_translatables(raw_text)
-    text_for_api = apply_manual_dict(protected, iso_code, manual_dict)
     try:
-        translated = throttled_translate(text_for_api, iso_code) or protected
+        translated = throttled_translate(protected, iso_code) or protected
     except Exception:
         translated = protected  # fallback: giữ nguyên bản gốc, không trả về text đã lowercase
     if ph_map:
@@ -267,16 +285,10 @@ def refresh_console():
 # ---------------------------------------------------------------------------
 
 def translate_language(thread_idx, iso_code, language_name, input_xml_path, res_dir,
-                       translation_memory, manual_dict, cdata_names, lang_results, memory_path,
-                       manual_dict_path):
+                       translation_cache, cdata_names, lang_results):
     android_iso = 'zh' if iso_code.startswith('zh') else iso_code
     dest_folder = os.path.join(res_dir, f"values-{android_iso}")
     dest_file = os.path.join(dest_folder, "strings.xml")
-
-    with _memory_lock:
-        if iso_code not in translation_memory:
-            translation_memory[iso_code] = {}
-    mem = translation_memory[iso_code]
 
     try:
         # --- BƯỚC 1: ĐỌC FILE GỐC (CDATA đã được tiền xử lý) ---
@@ -366,16 +378,15 @@ def translate_language(thread_idx, iso_code, language_name, input_xml_path, res_
                 if name in existing_translated:
                     set_inner_xml(elem, existing_translated[name])
                     old_keep_count += 1
-                elif not is_html and raw_content in mem:
+                elif not is_html and (cached := translation_cache.get(iso_code, raw_content)) is not None:
                     # Plain text cache hit — apply Android escaping unless CDATA
-                    cached = mem[raw_content]
                     set_inner_xml(elem, cached if is_cdata else escape_android_chars(cached))
                     update_count += 1
                 else:
                     try:
-                        translated = translate_string(raw_content, iso_code, manual_dict)
+                        translated = translate_string(raw_content, iso_code)
                         if not is_html:
-                            mem[raw_content] = translated  # cache raw (unescaped)
+                            translation_cache.set(iso_code, raw_content, translated)
                         # HTML and CDATA elements must NOT have Android char escaping
                         # (escaping would corrupt tag attributes or CDATA content)
                         if is_html or is_cdata:
@@ -398,13 +409,13 @@ def translate_language(thread_idx, iso_code, language_name, input_xml_path, res_
                     if i < len(old_items) and old_items[i] and old_items[i] != (base_arr[i] if i < len(base_arr) else ""):
                         set_inner_xml(item, old_items[i])
                         old_keep_count += 1
-                    elif raw_item in mem:
-                        set_inner_xml(item, escape_android_chars(mem[raw_item]))
+                    elif (cached := translation_cache.get(iso_code, raw_item)) is not None:
+                        set_inner_xml(item, escape_android_chars(cached))
                         update_count += 1
                     else:
                         try:
-                            translated = translate_string(raw_item, iso_code, manual_dict)
-                            mem[raw_item] = translated
+                            translated = translate_string(raw_item, iso_code)
+                            translation_cache.set(iso_code, raw_item, translated)
                             set_inner_xml(item, escape_android_chars(translated))
                             new_count += 1
                         except Exception as e:
@@ -422,13 +433,13 @@ def translate_language(thread_idx, iso_code, language_name, input_xml_path, res_
                     if i < len(old_items) and old_items[i] and old_items[i] != (base_plu[i] if i < len(base_plu) else ""):
                         set_inner_xml(item, old_items[i])
                         old_keep_count += 1
-                    elif raw_item in mem:
-                        set_inner_xml(item, escape_android_chars(mem[raw_item]))
+                    elif (cached := translation_cache.get(iso_code, raw_item)) is not None:
+                        set_inner_xml(item, escape_android_chars(cached))
                         update_count += 1
                     else:
                         try:
-                            translated = translate_string(raw_item, iso_code, manual_dict)
-                            mem[raw_item] = translated
+                            translated = translate_string(raw_item, iso_code)
+                            translation_cache.set(iso_code, raw_item, translated)
                             set_inner_xml(item, escape_android_chars(translated))
                             new_count += 1
                         except Exception as e:
@@ -446,11 +457,6 @@ def translate_language(thread_idx, iso_code, language_name, input_xml_path, res_
         postprocess_cdata(dest_file, cdata_names)
 
         lang_results[iso_code] = ('pass', language_name)
-        with _memory_lock:
-            if iso_code not in manual_dict:
-                manual_dict[iso_code] = {}
-            manual_dict[iso_code].update(translation_memory.get(iso_code, {}))
-            save_json(manual_dict, manual_dict_path)
         with progress_lock:
             thread_status[thread_idx] = ""
             sys.stdout.write(
@@ -464,20 +470,18 @@ def translate_language(thread_idx, iso_code, language_name, input_xml_path, res_
             sys.stdout.write(f"\r❌ {language_name:12} | Lỗi: {str(e)[:60]}\033[K\n")
 
 
-def main(input_arg, lang_path=None, manual_dict_path=None, output_dir=None, threads=None):
+def main(input_arg, lang_path=None, output_dir=None, threads=None):
     input_xml = os.path.join(input_arg, "strings.xml") if os.path.isdir(input_arg) else input_arg
     base_dir = os.path.dirname(os.path.abspath(__file__))
 
     if lang_path is None:
         lang_path = os.path.join(base_dir, "all_languages.json")
-    if manual_dict_path is None:
-        manual_dict_path = os.path.join(base_dir, "mnt/data/manual_dict.json")
     if output_dir is None:
         output_dir = os.path.dirname(os.path.dirname(input_xml))
     if threads is None:
         threads = MAX_THREADS
 
-    memory_path = os.path.join(base_dir, "translation_memory.json")
+    cache_db_path = os.path.join(base_dir, "translation_cache.db")
 
     if not os.path.isfile(input_xml):
         print(f"❌ Không tìm thấy file nguồn: {input_xml}")
@@ -488,8 +492,7 @@ def main(input_arg, lang_path=None, manual_dict_path=None, output_dir=None, thre
         print(f"❌ Danh sách ngôn ngữ trống hoặc không đọc được: {lang_path}")
         sys.exit(1)
 
-    memory = load_json(memory_path)
-    manual_dict = load_json(manual_dict_path)
+    translation_cache = TranslationCache(cache_db_path)
 
     # Detect CDATA element names once from the source file
     try:
@@ -534,15 +537,11 @@ def main(input_arg, lang_path=None, manual_dict_path=None, output_dir=None, thre
                 lang["name"],
                 input_xml,
                 output_dir,
-                memory,
-                manual_dict,
+                translation_cache,
                 cdata_names,
                 lang_results,
-                memory_path,
-                manual_dict_path,
             )
-
-    save_json(memory, memory_path)
+    translation_cache.close()
 
     actual_seconds = time.time() - start_time
     diff_seconds = actual_seconds - estimated_seconds
@@ -577,12 +576,6 @@ if __name__ == "__main__":
         help="Đường dẫn tới languages.json (mặc định: all_languages.json kế bên script)",
     )
     parser.add_argument(
-        "--manual-dict", "-m",
-        metavar="PATH",
-        dest="manual_dict",
-        help="Đường dẫn tới manual_dict.json (mặc định: mnt/data/manual_dict.json)",
-    )
-    parser.add_argument(
         "--output", "-o",
         metavar="DIR",
         help="Thư mục output chứa các values-xx/ (mặc định: thư mục cha của source)",
@@ -595,5 +588,4 @@ if __name__ == "__main__":
         help=f"Số luồng dịch song song (mặc định: {MAX_THREADS})",
     )
     args = parser.parse_args()
-    main(args.source, lang_path=args.languages, manual_dict_path=args.manual_dict,
-         output_dir=args.output, threads=args.threads)
+    main(args.source, lang_path=args.languages, output_dir=args.output, threads=args.threads)

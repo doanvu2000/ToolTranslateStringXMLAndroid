@@ -1,1 +1,3 @@
 /mnt/data/output/
+__pycache__/
+*.pyc

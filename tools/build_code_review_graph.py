@@ -1,10 +1,9 @@
-import ast
 import argparse
+import ast
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict, List, Set, Tuple
-
 
 ROOT = Path(__file__).resolve().parents[1]
 OUTPUT_PATH = ROOT / "code_review_graph.md"
@@ -535,7 +534,7 @@ def build_markdown(modules: List[ModuleInfo]) -> str:
             "",
             "## Coverage Gaps Suggested For Review",
             "",
-            "- Chưa thấy test race condition quanh `_last_call_time`, `_memory_lock` và `thread_status`.",
+            "- Chưa thấy test race condition quanh `_last_call_time`, `TranslationCache.lock` và `thread_status`.",
             "- Chưa thấy test end-to-end cho `main()` với file đích đã tồn tại và dữ liệu bị lệch schema.",
             "- Chưa thấy validation cho trường hợp parse XML lỗi ở file nguồn hoặc file đích.",
             "",

@@ -9,7 +9,7 @@
 
 ## 1. Executive Summary
 
-`ToolTranslateStringXMLAndroid` is a Python CLI tool that automates the localization of Android `strings.xml` files. Given a source English XML file, a list of target languages, and an optional manual-override dictionary, it produces correctly structured `values-{isoCode}/strings.xml` files ready to drop into an Android project — eliminating hours of manual copy-paste and reducing human translation errors.
+`ToolTranslateStringXMLAndroid` is a Python CLI tool that automates the localization of Android `strings.xml` files. Given a source English XML file and a list of target languages, it produces correctly structured `values-{isoCode}/strings.xml` files ready to drop into an Android project — eliminating hours of manual copy-paste and reducing human translation errors.
 
 ---
 
@@ -32,9 +32,9 @@ The tool was built to solve this with a one-command workflow: point it at the so
 ### Goals
 
 1. Produce valid, Android-compatible `strings.xml` for all configured languages in a single command run.
-2. Allow per-language term overrides (via `manual_dict.json`) to ensure brand-consistent or contextually correct translations.
-3. Respect Android XML constraints: skip `translatable="false"` strings, escape single quotes.
-4. Keep setup friction near zero — no API keys, no accounts, no build system integration required.
+2. Respect Android XML constraints: skip `translatable="false"` strings, escape single quotes.
+3. Keep setup friction near zero — no API keys, no accounts, no build system integration required.
+4. Cache translated results incrementally so repeated runs avoid re-translating unchanged text.
 
 ### Non-Goals
 
@@ -78,8 +78,8 @@ The source XML (`strings.xml`) belongs to `Precision Challenge`, a video/filter 
 | 1 | As a developer, I can run a single command and get translated XML files for all languages in `languages.json`. | `python translate.py` exits 0 and creates `output/values-{isoCode}/strings.xml` for every language entry. |
 | 2 | As a developer, strings marked `translatable="false"` are preserved verbatim in all outputs. | `app_name` (and any other `translatable="false"` entry) appears unchanged in every output file. |
 | 3 | As a developer, single quotes in translated output are escaped as `\'` so Android builds don't fail. | Any translated string containing `'` has it replaced with `\'` in the output XML. |
-| 4 | As a developer, I can define manual overrides per language in `manual_dict.json` so common terms (Save, Delete, etc.) are always correct. | Words listed in `manual_dict[lang]` are substituted before Google Translate is called; final output uses the override value. |
-| 5 | As a developer, Chinese variants (`zh-CN`, `zh-TW`, etc.) are normalized to a single output folder `values-zh`. | All ISO codes starting with `zh` write output to `values-zh/`. |
+| 4 | As a developer, Chinese variants (`zh-CN`, `zh-TW`, etc.) are normalized to a single output folder `values-zh`. | All ISO codes starting with `zh` write output to `values-zh/`. |
+| 5 | As a developer, repeated runs reuse prior translations so only missing text triggers API calls. | Existing `(isoCode, source_text)` entries are read from SQLite cache before calling the translator. |
 
 ### P1 — Should Have
 
@@ -87,13 +87,13 @@ The source XML (`strings.xml`) belongs to `Precision Challenge`, a video/filter 
 |---|-----------|---------------------|
 | 6 | As a developer, I see per-language progress in the console so I know the tool is running and how long each language takes. | Console prints `START` and `done in values-{isoCode} (Xms)` for each language. |
 | 7 | As a developer, if Google Translate fails for a string, the original English text is used as a fallback (no crash). | On `Exception` in `translate_text`, the function returns the original text and logs the error; the run continues. |
-| 8 | As a developer, I can configure all paths (input XML, languages JSON, manual dict, output dir) without editing the script. | Paths are defined as variables at the top of `__main__` (currently) — in a future version, via CLI args or a config file. |
+| 8 | As a developer, I can configure all paths (input XML, languages JSON, output dir) without editing the script. | CLI supports source, languages, output dir and thread count via arguments. |
 
 ### P2 — Nice to Have / Future
 
 | # | User Story | Acceptance Criteria |
 |---|-----------|---------------------|
-| 9 | As a developer, I can pass paths as CLI arguments (`--input`, `--output`, `--languages`, `--dict`) instead of editing the script. | `argparse`-based CLI; all four paths are optional with sensible defaults. |
+| 9 | As a developer, I can pass paths as CLI arguments (`source`, `--output`, `--languages`, `--threads`) instead of editing the script. | `argparse`-based CLI; all paths are optional except source. |
 | 10 | As a developer, only strings that have changed since the last run are re-translated (incremental mode) to save API calls and time. | Tool compares existing output against source; skips strings where the source text is unchanged. |
 | 11 | As a developer, `<plurals>` and `<string-array>` elements are also translated. | Tool handles `<plurals>` items and `<string-array>` items in addition to `<string>`. |
 | 12 | As a developer, I can run the tool via a Gradle task so translation is part of the build pipeline. | A Gradle `exec` task wraps `python translate.py`; documented in README. |
@@ -109,11 +109,13 @@ The source XML (`strings.xml`) belongs to `Precision Challenge`, a video/filter 
 mnt/data/
 ├── strings.xml          ← source (English, Android XML)
 ├── languages.json       ← [{"isoCode": "fr", "name": "French"}, ...]
-├── manual_dict.json     ← {"fr": {"save": "enregistrer"}, ...}
 └── output/
     ├── values-ar/strings.xml
     ├── values-de/strings.xml
     └── ...              ← one folder per language
+
+project root/
+└── translation_cache.db ← SQLite translation cache
 ```
 
 ### Translation Pipeline (per language)
@@ -124,10 +126,8 @@ load_xml(strings.xml)
     ▼
 for each <string> (skip translatable="false")
     │
-    ├─ lowercase source text
-    ├─ apply manual_dict substitutions  (deterministic overrides)
-    ├─ call googletrans.Translator      (ML translation)
-    ├─ apply_case_correction()          (restore capitalisation)
+    ├─ check SQLite cache               (incremental reuse)
+    ├─ call translator backend          (only on cache miss)
     └─ escape_single_quotes()           (Android XML safety)
     │
     ▼
@@ -139,7 +139,7 @@ save_translated_xml(values-{isoCode}/strings.xml)
 | Decision | Rationale |
 |----------|-----------|
 | `googletrans` (unofficial Google Translate wrapper) | Zero cost, no API key required. Trade-off: unofficial API may break on Google-side changes. |
-| Manual dict applied as string substitution before translation | Gives developer deterministic control over high-visibility terms without needing to post-process ML output. |
+| SQLite cache keyed by `(iso_code, source_text)` | Avoids loading/saving one huge JSON file and scales better as cache grows. |
 | One `Translator()` instance per string call | Current implementation; a future optimisation is to batch strings or reuse a single instance per language. |
 | `translatable="false"` check | Standard Android convention — must be honoured to avoid overwriting app identifiers. |
 | Chinese ISO normalisation (`zh*` → `zh`) | `googletrans` accepts `zh` but Android uses `zh-CN`/`zh-TW`; normalisation ensures output folder matches Android expectations while keeping the translate call valid. |
@@ -160,7 +160,6 @@ save_translated_xml(values-{isoCode}/strings.xml)
 |----------|-------|-------|
 | Should `zh-CN` output go to `values-zh-rCN/` (Android proper locale format) instead of `values-zh/`? | Developer | Android uses `values-zh-rCN` for region-specific Chinese; current `values-zh` only covers generic Chinese. |
 | Is `googletrans` acceptable long-term or should we migrate to an official API (Google Cloud Translation, DeepL)? | Developer | `googletrans` uses the web endpoint without a key — could break or be rate-limited at any time. |
-| Should the manual dict support regex patterns, not just exact substring matches? | Developer | Current substring replace can produce false positives (e.g. "save" matching inside "unsaved"). |
 | Should we add a `--dry-run` flag that prints translations without writing files? | Developer | Useful for spot-checking quality before committing output to the Android project. |
 | Who reviews translation quality before it ships? | Developer | Currently no review step; translations go directly to production. |
 
@@ -170,10 +169,10 @@ save_translated_xml(values-{isoCode}/strings.xml)
 
 ### Phase 1 — Current (Shipped)
 - Core translation pipeline (P0 stories 1–5)
-- Manual dictionary overrides
 - Progress logging
 - Single-quote escaping
 - Chinese ISO normalisation
+- SQLite translation cache
 
 ### Phase 2 — Near-term Improvements
 - CLI argument support (`argparse`) — removes need to edit the script
@@ -206,18 +205,9 @@ Standard Android resource file. Tool processes only `<string>` elements at the t
 
 Each entry must have `isoCode` (BCP-47 / Android locale code) and `name` (human-readable, used in log output only).
 
-### Input: `manual_dict.json`
+### Cache: `translation_cache.db`
 
-```json
-{
-  "fr": {
-    "save": "enregistrer",
-    "settings": "paramètres"
-  }
-}
-```
-
-Keys are target language ISO codes. Values are `{source_word: target_word}` maps. Matching is **case-insensitive substring** — the source text is lowercased before matching.
+SQLite file storing translated text by `(iso_code, source_text)`.
 
 ### Output: `values-{isoCode}/strings.xml`
 

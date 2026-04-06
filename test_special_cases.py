@@ -2,11 +2,10 @@
 Test script for special translation cases.
 Uses a mock translator to avoid real API calls.
 """
-import sys
 import os
+import sys
+import tempfile
 import xml.etree.ElementTree as ET
-import re
-import html as html_lib
 from unittest.mock import patch
 
 if hasattr(sys.stdout, "reconfigure"):
@@ -19,6 +18,7 @@ sys.path.insert(0, os.path.dirname(__file__))
 
 # Import helpers from translate.py
 from translate import (
+    TranslationCache,
     escape_android_chars,
     protect_translatables,
     restore_translatables,
@@ -28,7 +28,6 @@ from translate import (
     postprocess_cdata,
     extract_cdata_names,
     translate_string,
-    apply_manual_dict,
 )
 
 PASS = "✅ PASS"
@@ -178,7 +177,6 @@ check("ET reads CDATA text correctly (ampersand)",
       "Tom & Jerry")
 
 # postprocess_cdata: write a temp file, run postprocess, read back
-import tempfile, os
 
 tmp = tempfile.NamedTemporaryFile(mode='w', suffix='.xml', delete=False, encoding='utf-8')
 tmp.write('''<?xml version="1.0" encoding="utf-8"?>
@@ -215,23 +213,48 @@ def mock_translate(text, dest):
     return text.replace("Hello", "Xin chào").replace("world", "thế giới")
 
 with patch('translate.throttled_translate', side_effect=mock_translate):
-    result = translate_string("Hello world", 'vi', {})
+    result = translate_string("Hello world", 'vi')
     check("translate plain text",
           result,
           "Xin chào thế giới")
 
-    result2 = translate_string("Hello %1$s world", 'vi', {})
+    result2 = translate_string("Hello %1$s world", 'vi')
     check("translate with format spec preserved",
           "%1$s" in result2,
           True)
 
-    result3 = translate_string("Hello <b>world</b>", 'vi', {})
+    result3 = translate_string("Hello <b>world</b>", 'vi')
     check("translate with HTML tags preserved",
           "<b>" in result3 and "</b>" in result3,
           True)
     check("translate with HTML tags: text translated",
           "Xin chào" in result3 or "thế giới" in result3,
           True)
+
+# ===========================================================================
+# 6. TranslationCache (SQLite)
+# ===========================================================================
+print("\n── 6. TranslationCache ──────────────────────────────────────")
+
+with tempfile.TemporaryDirectory() as tmp_dir:
+    db_path = os.path.join(tmp_dir, "translation_cache.db")
+    cache = TranslationCache(db_path)
+    try:
+        check("cache miss returns None",
+              cache.get("vi", "Hello"),
+              None)
+
+        cache.set("vi", "Hello", "Xin chào")
+        check("cache get after set",
+              cache.get("vi", "Hello"),
+              "Xin chào")
+
+        cache.set("vi", "Hello", "Chào bạn")
+        check("cache upsert overwrites previous value",
+              cache.get("vi", "Hello"),
+              "Chào bạn")
+    finally:
+        cache.close()
 
 # ===========================================================================
 # Summary

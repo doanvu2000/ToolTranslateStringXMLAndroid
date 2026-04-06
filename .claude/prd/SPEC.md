@@ -10,39 +10,21 @@
 
 ```
 translate.py
-├── load_manual_dict(file_path) → dict
-├── load_languages_from_json(file_path) → list[dict]
-├── load_xml(file_path) → xml.etree.ElementTree.Element
-├── escape_single_quotes(text) → str
-├── apply_case_correction(original, translated) → str
-├── translate_text(text, dest_lang, manual_dict) → str
-├── normalize_chinese_iso(iso_code) → str
-├── save_translated_xml(root, isoCode, output_dir) → None
-├── print_progress_start(language_name, iso_code) → None
-├── print_progress_done(language_name, iso_code, duration) → None
-└── process_strings(input_xml_path, languages_json_path, manual_dict_path, output_dir) → None
+├── TranslationCache(db_path)
+├── load_json(file_path) → dict | list
+├── escape_android_chars(text) → str
+├── protect_translatables(text) → tuple[str, dict]
+├── restore_translatables(text, ph_map) → str
+├── preprocess_cdata(xml_text) → str
+├── postprocess_cdata(dest_file, cdata_names) → None
+├── translate_string(text, dest_lang) → str
+├── translate_language(...) → None
+└── main(source, lang_path, output_dir, threads) → None
 ```
 
 ---
 
 ## 2. Function Specifications
-
-### `load_manual_dict(file_path: str) -> dict`
-
-- Reads `manual_dict.json` from `file_path`.
-- Returns parsed JSON as a `dict` keyed by language ISO code.
-- Raises `FileNotFoundError` / `json.JSONDecodeError` on bad input (no internal handling — let it propagate to caller).
-
-**Schema contract:**
-```
-{
-  "<iso_code>": {
-    "<source_word_lowercase>": "<target_word>"
-  }
-}
-```
-
----
 
 ### `load_languages_from_json(file_path: str) -> list[dict]`
 
@@ -75,41 +57,35 @@ translate.py
 
 ---
 
-### `apply_case_correction(original: str, translated: str) -> str`
+### `TranslationCache(db_path: str)`
 
-- If `original.istitle()` is `True` → return `translated.capitalize()`.
-- Otherwise → return `translated.lower()`.
+- SQLite-backed cache for translated text.
+- Table schema:
 
-**Behaviour table:**
-| original | istitle()? | output |
-|----------|-----------|--------|
-| `"Save"` | True | `translated.capitalize()` |
-| `"save"` | False | `translated.lower()` |
-| `"SAVE"` | False | `translated.lower()` |
-| `"Save Video"` | True | `translated.capitalize()` (only first char uppercased) |
+```sql
+CREATE TABLE translations (
+  iso_code TEXT NOT NULL,
+  source_text TEXT NOT NULL,
+  translated_text TEXT NOT NULL,
+  PRIMARY KEY (iso_code, source_text)
+)
+```
 
-**Known limitation:** `istitle()` returns `True` only when every word starts with a capital — e.g. `"Select Language"` → `True`, `"Select language"` → `False`. Multi-word title-case strings will capitalize only the first character of the full translated string, not each word.
+- Supports:
+  - `get(iso_code, source_text)` for cache lookup
+  - `set(iso_code, source_text, translated_text)` for upsert
 
 ---
 
-### `translate_text(text: str, dest_lang: str, manual_dict: dict) -> str`
+### `translate_string(text: str, dest_lang: str) -> str`
 
 **Algorithm:**
 
-1. Save `original_text = text`.
-2. `text = text.lower()`.
-3. If `dest_lang` in `manual_dict`:
-   - Iterate `manual_dict[dest_lang].items()`.
-   - For each `(word, translated_word)`: `text = text.replace(word, translated_word)`.
-   - Replacements are applied in iteration order (JSON key order, Python 3.7+ insertion order).
-4. Instantiate `googletrans.Translator()`.
-5. Call `translator.translate(text, dest=dest_lang)`.
-6. Apply `apply_case_correction(original_text, translated.text)`.
-7. Apply `escape_single_quotes(result)`.
-8. Return result.
-9. On any `Exception`: log `f"Error translating '{text}' to {dest_lang}: {e}"`, return `text` (the lowercased+dict-substituted version — **not** the original).
-
-**Performance note:** A new `Translator()` instance is created per string. For 50 strings × 26 languages = 1,300 instantiations. Recommended future fix: instantiate once per language loop iteration.
+1. Return early if the input is blank.
+2. Replace HTML tags and Android format specifiers with placeholders.
+3. Call the translation backend with protected text.
+4. Restore placeholders into translated text.
+5. On any `Exception`, return protected source text so output generation can continue.
 
 ---
 
@@ -138,7 +114,6 @@ translate.py
 Orchestrator. Execution flow:
 
 ```
-load_manual_dict()
 load_languages_from_json()
 for lang in languages:
     print_progress_start()
@@ -146,7 +121,11 @@ for lang in languages:
     root = load_xml()               ← fresh parse each iteration
     for string_elem in root.findall('string'):
         if translatable == "false": continue
-        string_elem.text = translate_text(...)
+        cached = TranslationCache.get(...)
+        if not cached:
+            cached = translate_string(...)
+            TranslationCache.set(...)
+        string_elem.text = cached
     save_translated_xml(root, ...)
     duration = (time.time() - start_time) * 1000
     print_progress_done(..., duration)
@@ -158,7 +137,6 @@ for lang in languages:
 |-------|------|-------------|
 | `input_xml_path` | `str` | Path to source `strings.xml` |
 | `languages_json_path` | `str` | Path to `languages.json` |
-| `manual_dict_path` | `str` | Path to `manual_dict.json` |
 | `output_dir` | `str` | Root output directory |
 
 ---
@@ -178,19 +156,10 @@ for lang in languages:
 
 Current languages (26 total): `ar, cs, da, de, el, en, es, et, eu, fi, fr, hi, hr, hu, hy, id, it, ja, ka, ko, mn, ms, nl, pl, pt, zh-CN`
 
-### `manual_dict.json`
+### `translation_cache.db`
 
-```json
-{
-  "<iso_code>": {
-    "<source_word>": "<target_word>"
-  }
-}
-```
-
-- All source words should be **lowercase** (matching is done on lowercased source text).
-- Current languages with overrides: `vi, en, es, fr, de, pt, ru, zh, ar, it, ja, ko, tr, uk, zh-CN, ms, my, nb, ne, nl, or, pa, pl, ro, sr-Latn, sv, sw`
-- Current override keys: `save, delete, share, next, cancel, edit, settings, exit`
+- SQLite database in project root.
+- New translations are persisted incrementally during processing.
 
 ### `strings.xml` (source)
 
@@ -230,13 +199,9 @@ Current languages (26 total): `ar, cs, da, de, el, en, es, et, eu, fi, fr, hi, h
 |---------------|-------------------|------------------------|
 | `strings.xml` not found | `ET.parse` raises `FileNotFoundError` — uncaught, run aborts | Wrap in try/except with clear error message |
 | `languages.json` malformed | `json.JSONDecodeError` — uncaught, run aborts | Same |
-| Google Translate network error | Caught in `translate_text`, logs error, returns (lowercased) source text | Return `original_text` instead of lowercased text |
+| Google Translate network error | Caught in `translate_string`, returns source text | Add explicit warning count / retry metrics |
 | Google Translate rate-limit | Same as above — silently uses English text | Add exponential backoff retry (max 3 attempts) |
 | Output directory not writable | `OSError` — uncaught | Wrap `os.makedirs` / `ET.write` |
-| `manual_dict` key not in language | Silently skipped (dict lookup miss) | Intended behaviour — no change needed |
-
----
-
 ## 6. Dependency Table
 
 | Package | Version constraint | Purpose |
@@ -256,33 +221,28 @@ pip install googletrans==4.0.0rc1
 
 ## 7. Entry Point Configuration
 
-Defined in `__main__` block:
+CLI arguments:
 
-```python
-input_xml_path    = "mnt/data/strings.xml"
-languages_json_path = "mnt/data/languages.json"
-manual_dict_path  = "mnt/data/manual_dict.json"
-output_dir        = "mnt/data/output"
+```bash
+python translate.py SOURCE [-l LANGUAGES] [-o OUTPUT] [-t THREADS]
 ```
-
-All paths are relative to the working directory where `python translate.py` is invoked.
 
 ---
 
 ## 8. Proposed CLI Interface (Phase 2)
 
 ```
-usage: translate.py [-h] [-i INPUT] [-l LANGUAGES] [-d DICT] [-o OUTPUT]
+usage: translate.py [-h] [-l LANGUAGES] [-o OUTPUT] [-t THREADS] source
 
 Translate Android strings.xml to multiple languages.
 
 optional arguments:
   -h, --help            show this help message and exit
-  -i, --input INPUT     Path to source strings.xml  [default: mnt/data/strings.xml]
+  source                Path to source strings.xml or folder containing it
   -l, --languages LANGUAGES
-                        Path to languages.json       [default: mnt/data/languages.json]
-  -d, --dict DICT       Path to manual_dict.json     [default: mnt/data/manual_dict.json]
-  -o, --output OUTPUT   Output directory             [default: mnt/data/output]
+                        Path to languages.json       [default: all_languages.json]
+  -o, --output OUTPUT   Output directory             [default: parent folder of source]
+  -t, --threads THREADS Number of worker threads     [default: 10]
 ```
 
 ---
@@ -293,11 +253,8 @@ optional arguments:
 |------|-------------------|-------|-----------------|
 | Apostrophe escaping | `escape_single_quotes` | `"Don't"` | `"Don\'t"` |
 | No-op on clean string | `escape_single_quotes` | `"Hello"` | `"Hello"` |
-| Title case preserved | `apply_case_correction` | `("Save", "enregistrer")` | `"Enregistrer"` |
-| Lowercase forced | `apply_case_correction` | `("save", "ENREGISTRER")` | `"enregistrer"` |
 | Chinese normalisation | `normalize_chinese_iso` | `"zh-CN"` | `"zh"` |
 | Chinese normalisation | `normalize_chinese_iso` | `"zh-TW"` | `"zh"` |
 | Non-Chinese passthrough | `normalize_chinese_iso` | `"fr"` | `"fr"` |
-| Manual dict applied | `translate_text` (mocked translator) | `"save"` → `fr` | uses `"enregistrer"` from dict |
 | translatable=false skipped | `process_strings` | `app_name` element | unchanged in output |
 | Output file created | `save_translated_xml` | any root + `"fr"` | file exists at `output/values-fr/strings.xml` |
