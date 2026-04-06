@@ -15,6 +15,11 @@ try:
 except ModuleNotFoundError:
     GoogleTranslator = None
 
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8")
+if hasattr(sys.stderr, "reconfigure"):
+    sys.stderr.reconfigure(encoding="utf-8")
+
 # --- CONFIG ---
 MAX_THREADS = 8
 TRANSLATE_DELAY = 0.5  # minimum seconds between any two API calls (global, across all threads)
@@ -568,7 +573,9 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "source",
-        help="Đường dẫn tới strings.xml hoặc thư mục chứa nó",
+        nargs="?",
+        default=os.path.join(os.path.dirname(os.path.abspath(__file__)), "mnt/data/strings.xml"),
+        help="Đường dẫn tới strings.xml hoặc thư mục chứa nó (mặc định: mnt/data/strings.xml)",
     )
     parser.add_argument(
         "--languages", "-l",
