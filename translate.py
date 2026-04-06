@@ -8,7 +8,11 @@ import re
 import html as html_lib
 import argparse
 from concurrent.futures import ThreadPoolExecutor
-from deep_translator import GoogleTranslator
+
+try:
+    from deep_translator import GoogleTranslator
+except ModuleNotFoundError:
+    GoogleTranslator = None
 
 # --- CONFIG ---
 MAX_THREADS = 10
@@ -44,6 +48,10 @@ _memory_lock = threading.Lock()
 def throttled_translate(text, dest, retries=3):
     """Call Google Translate with a global minimum delay between requests.
     Retries up to `retries` times with exponential backoff on failure."""
+    if GoogleTranslator is None:
+        raise ModuleNotFoundError(
+            "No module named 'deep_translator'. Install it with: pip install deep-translator"
+        )
     global _last_call_time
     last_exc = None
     for attempt in range(retries):

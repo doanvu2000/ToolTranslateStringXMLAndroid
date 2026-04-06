@@ -9,6 +9,11 @@ import re
 import html as html_lib
 from unittest.mock import patch
 
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding='utf-8')
+if hasattr(sys.stderr, "reconfigure"):
+    sys.stderr.reconfigure(encoding='utf-8')
+
 # Add project root to path
 sys.path.insert(0, os.path.dirname(__file__))
 
