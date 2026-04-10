@@ -120,9 +120,17 @@ def setup_workspace():
     return tmp, source_path, lang_path, os.path.join(tmp, "res")
 
 
+def iso_to_android_folder(iso_code):
+    """Convert ISO code to Android resource folder name."""
+    if '-' in iso_code:
+        lang, region = iso_code.split('-', 1)
+        return f"values-{lang}-r{region.upper()}"
+    return f"values-{iso_code}"
+
+
 def read_output(res_dir, iso_code):
     """Read a translated output file and return (raw_text, parsed_root)."""
-    dest = os.path.join(res_dir, f"values-{iso_code}", "strings.xml")
+    dest = os.path.join(res_dir, iso_to_android_folder(iso_code), "strings.xml")
     if not os.path.exists(dest):
         return None, None
     with open(dest, "r", encoding="utf-8") as f:
@@ -561,6 +569,64 @@ try:
     check_true("log contains PASS result", "PASS" in log_content)
     # Log file should contain summary
     check_true("log contains summary", "HOÀN THÀNH" in log_content or "Pass" in log_content)
+
+finally:
+    shutil.rmtree(tmp_dir, ignore_errors=True)
+
+
+# ===========================================================================
+# Test 9: Regional language variants (zh-CN, pt-BR → values-zh-rCN, values-pt-rBR)
+# ===========================================================================
+print("\n── TEST 9: Regional language variants ───────────────────────")
+
+REGIONAL_SOURCE_XML = """\
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="txt_hello">Hello world</string>
+</resources>
+"""
+
+tmp_dir, _, _, res_dir = setup_workspace()
+try:
+    source_path = os.path.join(os.path.dirname(res_dir), "res", "values", "strings.xml")
+    with open(source_path, "w", encoding="utf-8") as f:
+        f.write(REGIONAL_SOURCE_XML)
+
+    regional_langs = [
+        {"isoCode": "zh-CN", "name": "Chinese Simplified"},
+        {"isoCode": "zh-TW", "name": "Chinese Traditional"},
+        {"isoCode": "pt-BR", "name": "Portuguese Brazilian"},
+        {"isoCode": "pt", "name": "Portuguese"},
+        {"isoCode": "fr", "name": "French"},
+    ]
+    lang_path_r = os.path.join(tmp_dir, "regional_langs.json")
+    with open(lang_path_r, "w", encoding="utf-8") as f:
+        json.dump(regional_langs, f)
+
+    with patch("translate.throttled_translate", side_effect=mock_translate):
+        with patch("translate.os.path.dirname", return_value=tmp_dir):
+            main(source_path, lang_path=lang_path_r, output_dir=res_dir, threads=2)
+
+    # Check Android folder naming
+    check_true("zh-CN → values-zh-rCN",
+               os.path.exists(os.path.join(res_dir, "values-zh-rCN", "strings.xml")))
+    check_true("zh-TW → values-zh-rTW",
+               os.path.exists(os.path.join(res_dir, "values-zh-rTW", "strings.xml")))
+    check_true("pt-BR → values-pt-rBR",
+               os.path.exists(os.path.join(res_dir, "values-pt-rBR", "strings.xml")))
+    check_true("pt → values-pt (no region)",
+               os.path.exists(os.path.join(res_dir, "values-pt", "strings.xml")))
+    check_true("fr → values-fr (no region)",
+               os.path.exists(os.path.join(res_dir, "values-fr", "strings.xml")))
+
+    # Content translated with correct language code
+    _, root_zh_cn = read_output(res_dir, "zh-CN")
+    hello_cn = get_string_text(root_zh_cn, "txt_hello")
+    check_true("zh-CN content translated", hello_cn is not None and "[zh-CN]" in hello_cn)
+
+    _, root_pt_br = read_output(res_dir, "pt-BR")
+    hello_br = get_string_text(root_pt_br, "txt_hello")
+    check_true("pt-BR content translated", hello_br is not None and "[pt-BR]" in hello_br)
 
 finally:
     shutil.rmtree(tmp_dir, ignore_errors=True)

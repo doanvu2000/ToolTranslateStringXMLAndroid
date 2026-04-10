@@ -363,8 +363,13 @@ def refresh_console():
 
 def translate_language(thread_idx, iso_code, language_name, input_xml_path, res_dir,
                        translation_cache, cdata_names, lang_results, overrides=None):
-    android_iso = 'zh' if iso_code.startswith('zh') else iso_code
-    dest_folder = os.path.join(res_dir, f"values-{android_iso}")
+    # Map ISO codes to Android resource folder names (e.g. zh-CN → zh-rCN, pt-BR → pt-rBR)
+    if '-' in iso_code:
+        lang, region = iso_code.split('-', 1)
+        android_folder = f"values-{lang}-r{region.upper()}"
+    else:
+        android_folder = f"values-{iso_code}"
+    dest_folder = os.path.join(res_dir, android_folder)
     dest_file = os.path.join(dest_folder, "strings.xml")
 
     try:

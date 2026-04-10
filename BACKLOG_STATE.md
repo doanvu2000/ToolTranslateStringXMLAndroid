@@ -11,8 +11,7 @@
 
 - [x] **Story 3 (P1)**: File logging — `--log-file` CLI option, logger with timestamps + DEBUG level, 4 integration tests
 
-## Up Next (P1)
-- [ ] **Story 4**: Regional language variants (pt-BR, zh-TW)
+- [x] **Story 4 (P1)**: Regional language variants — `zh-CN`→`values-zh-rCN`, `pt-BR`→`values-pt-rBR` Android folder mapping, 7 integration tests
 
 ## Backlog (P2)
 - [ ] **Story 1**: Dry-run mode
