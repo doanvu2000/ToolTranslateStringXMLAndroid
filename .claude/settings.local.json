@@ -10,7 +10,19 @@
       "Bash(PYTHONIOENCODING=utf-8 .venv_test/Scripts/python test_special_cases.py)",
       "Bash(python test_special_cases.py)",
       "Bash(python -c \"import sys; sys.stdout.reconfigure\\(encoding='utf-8'\\)\")",
-      "Bash(PYTHONIOENCODING=utf-8 python test_special_cases.py)"
+      "Bash(PYTHONIOENCODING=utf-8 python test_special_cases.py)",
+      "Bash(python test_integration.py)",
+      "Bash(python translate.py sample_strings.xml --only vi fr --report report.json)",
+      "Bash(cat values-vi/strings.xml)",
+      "Bash(ls -d values-*/)",
+      "Bash(ls -d */values-*/)",
+      "Bash(python -c ':*)",
+      "Bash(python -c \"import json; langs=json.load\\(open\\('all_languages.json'\\)\\); print\\(f'{len\\(langs\\)} ngôn ngữ'\\)\")",
+      "Bash(python -c \"import json; langs=json.load\\(open\\('all_languages.json'\\)\\); print\\(len\\(langs\\), 'languages'\\)\")",
+      "Bash(python translate.py sample_strings.xml --report report_full.json --log-file translate_full.log)",
+      "Bash(python translate.py sample_strings.xml --cache check --only vi fr de ja)",
+      "Bash(python translate.py sample_strings.xml --cache check)",
+      "Bash(python translate.py mnt/data/strings.xml --cache check --only vi fr)"
     ]
   }
 }

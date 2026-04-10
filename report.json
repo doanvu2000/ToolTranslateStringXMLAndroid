@@ -1,0 +1,24 @@
+{
+  "duration_seconds": 43.81,
+  "languages_total": 2,
+  "languages_passed": 2,
+  "languages_failed": 0,
+  "results": {
+    "fr": {
+      "status": "pass",
+      "language": "French",
+      "new": 43,
+      "cache": 6,
+      "kept": 0,
+      "deleted": 0
+    },
+    "vi": {
+      "status": "pass",
+      "language": "Vietnamese",
+      "new": 43,
+      "cache": 6,
+      "kept": 0,
+      "deleted": 0
+    }
+  }
+}

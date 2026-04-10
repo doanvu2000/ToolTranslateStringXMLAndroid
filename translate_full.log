@@ -1,0 +1,88 @@
+2026-04-10 13:26:10 [INFO] 📋 Overrides: 2 token(s) from overrides.json
+2026-04-10 13:26:10 [INFO] 🚀 SYNC MODE (PROTECTED ORIGIN)
+2026-04-10 13:26:10 [INFO] ================================================================================
+2026-04-10 13:26:10 [INFO] 📊 Ngôn ngữ: 74 | Luồng đồng thời: 8 | Strings/ngôn ngữ: 49
+2026-04-10 13:26:10 [INFO] ⏱  Thời gian dự kiến (worst-case): 30m13s
+2026-04-10 13:26:10 [INFO] ================================================================================
+2026-04-10 13:28:53 [DEBUG] [bn] PASS new=43 cache=6 kept=0 deleted=0
+2026-04-10 13:28:55 [DEBUG] [ar] PASS new=43 cache=6 kept=0 deleted=0
+2026-04-10 13:28:58 [DEBUG] [as] PASS new=43 cache=6 kept=0 deleted=0
+2026-04-10 13:29:00 [DEBUG] [am] PASS new=43 cache=6 kept=0 deleted=0
+2026-04-10 13:29:02 [DEBUG] [bg] PASS new=43 cache=6 kept=0 deleted=0
+2026-04-10 13:29:03 [DEBUG] [af] PASS new=43 cache=6 kept=0 deleted=0
+2026-04-10 13:29:05 [DEBUG] [az] PASS new=43 cache=6 kept=0 deleted=0
+2026-04-10 13:29:13 [DEBUG] [be] PASS new=43 cache=6 kept=0 deleted=0
+2026-04-10 13:31:40 [DEBUG] [en] PASS new=43 cache=6 kept=0 deleted=0
+2026-04-10 13:31:51 [DEBUG] [cs] PASS new=43 cache=6 kept=0 deleted=0
+2026-04-10 13:31:52 [DEBUG] [de] PASS new=43 cache=6 kept=0 deleted=0
+2026-04-10 13:31:53 [DEBUG] [el] PASS new=43 cache=6 kept=0 deleted=0
+2026-04-10 13:31:53 [DEBUG] [da] PASS new=43 cache=6 kept=0 deleted=0
+2026-04-10 13:31:55 [DEBUG] [bs] PASS new=43 cache=6 kept=0 deleted=0
+2026-04-10 13:31:55 [DEBUG] [fr] PASS new=0 cache=2 kept=47 deleted=0
+2026-04-10 13:31:56 [DEBUG] [ca] PASS new=43 cache=6 kept=0 deleted=0
+2026-04-10 13:32:03 [DEBUG] [es] PASS new=43 cache=6 kept=0 deleted=0
+2026-04-10 13:34:34 [DEBUG] [et] PASS new=43 cache=6 kept=0 deleted=0
+2026-04-10 13:34:35 [DEBUG] [fa] PASS new=43 cache=6 kept=0 deleted=0
+2026-04-10 13:34:40 [DEBUG] [gu] PASS new=43 cache=6 kept=0 deleted=0
+2026-04-10 13:34:45 [DEBUG] [hi] PASS new=43 cache=6 kept=0 deleted=0
+2026-04-10 13:34:46 [DEBUG] [fi] PASS new=43 cache=6 kept=0 deleted=0
+2026-04-10 13:34:47 [DEBUG] [eu] PASS new=43 cache=6 kept=0 deleted=0
+2026-04-10 13:34:52 [DEBUG] [gl] PASS new=43 cache=6 kept=0 deleted=0
+2026-04-10 13:37:26 [DEBUG] [id] PASS new=43 cache=6 kept=0 deleted=0
+2026-04-10 13:37:28 [DEBUG] [hy] PASS new=43 cache=6 kept=0 deleted=0
+2026-04-10 13:37:28 [DEBUG] [hr] PASS new=43 cache=6 kept=0 deleted=0
+2026-04-10 13:37:31 [DEBUG] [hu] PASS new=43 cache=6 kept=0 deleted=0
+2026-04-10 13:37:36 [DEBUG] [it] PASS new=43 cache=6 kept=0 deleted=0
+2026-04-10 13:37:48 [DEBUG] [iw] PASS new=43 cache=6 kept=0 deleted=0
+2026-04-10 13:37:49 [DEBUG] [is] PASS new=43 cache=6 kept=0 deleted=0
+2026-04-10 13:40:09 [DEBUG] [ja] PASS new=43 cache=6 kept=0 deleted=0
+2026-04-10 13:40:17 [DEBUG] [kn] PASS new=43 cache=6 kept=0 deleted=0
+2026-04-10 13:40:19 [DEBUG] [ka] PASS new=43 cache=6 kept=0 deleted=0
+2026-04-10 13:40:24 [DEBUG] [km] PASS new=43 cache=6 kept=0 deleted=0
+2026-04-10 13:40:27 [DEBUG] [kk] PASS new=43 cache=6 kept=0 deleted=0
+2026-04-10 13:40:30 [DEBUG] [ko] PASS new=43 cache=6 kept=0 deleted=0
+2026-04-10 13:40:54 [DEBUG] [ky] PASS new=43 cache=6 kept=0 deleted=0
+2026-04-10 13:41:04 [DEBUG] [fil] PASS new=43 cache=6 kept=0 deleted=0
+2026-04-10 13:43:05 [DEBUG] [lo] PASS new=43 cache=6 kept=0 deleted=0
+2026-04-10 13:43:08 [DEBUG] [ml] PASS new=43 cache=6 kept=0 deleted=0
+2026-04-10 13:43:14 [DEBUG] [lv] PASS new=43 cache=6 kept=0 deleted=0
+2026-04-10 13:43:14 [DEBUG] [lt] PASS new=43 cache=6 kept=0 deleted=0
+2026-04-10 13:43:16 [DEBUG] [mk] PASS new=43 cache=6 kept=0 deleted=0
+2026-04-10 13:43:27 [DEBUG] [mn] PASS new=43 cache=6 kept=0 deleted=0
+2026-04-10 13:43:36 [DEBUG] [mr] PASS new=43 cache=6 kept=0 deleted=0
+2026-04-10 13:43:52 [DEBUG] [ms] PASS new=43 cache=6 kept=0 deleted=0
+2026-04-10 13:45:59 [DEBUG] [my] PASS new=43 cache=6 kept=0 deleted=0
+2026-04-10 13:46:01 [DEBUG] [ne] PASS new=43 cache=6 kept=0 deleted=0
+2026-04-10 13:46:04 [DEBUG] [nl] PASS new=43 cache=6 kept=0 deleted=0
+2026-04-10 13:46:14 [DEBUG] [pa] PASS new=43 cache=6 kept=0 deleted=0
+2026-04-10 13:46:24 [DEBUG] [or] PASS new=43 cache=6 kept=0 deleted=0
+2026-04-10 13:46:28 [DEBUG] [pl] PASS new=43 cache=6 kept=0 deleted=0
+2026-04-10 13:46:42 [DEBUG] [pt] PASS new=43 cache=6 kept=0 deleted=0
+2026-04-10 13:48:46 [DEBUG] [ru] PASS new=43 cache=6 kept=0 deleted=0
+2026-04-10 13:48:48 [DEBUG] [ro] PASS new=43 cache=6 kept=0 deleted=0
+2026-04-10 13:48:51 [DEBUG] [si] PASS new=43 cache=6 kept=0 deleted=0
+2026-04-10 13:49:07 [DEBUG] [sk] PASS new=43 cache=6 kept=0 deleted=0
+2026-04-10 13:49:14 [DEBUG] [sq] PASS new=43 cache=6 kept=0 deleted=0
+2026-04-10 13:49:23 [DEBUG] [sl] PASS new=43 cache=6 kept=0 deleted=0
+2026-04-10 13:49:39 [DEBUG] [sr] PASS new=43 cache=6 kept=0 deleted=0
+2026-04-10 13:51:33 [DEBUG] [ta] PASS new=43 cache=6 kept=0 deleted=0
+2026-04-10 13:51:35 [DEBUG] [sv] PASS new=43 cache=6 kept=0 deleted=0
+2026-04-10 13:51:48 [DEBUG] [te] PASS new=43 cache=6 kept=0 deleted=0
+2026-04-10 13:51:48 [DEBUG] [vi] PASS new=0 cache=0 kept=49 deleted=0
+2026-04-10 13:51:53 [DEBUG] [sw] PASS new=43 cache=6 kept=0 deleted=0
+2026-04-10 13:52:00 [DEBUG] [th] PASS new=43 cache=6 kept=0 deleted=0
+2026-04-10 13:52:14 [DEBUG] [nb] PASS new=43 cache=6 kept=0 deleted=0
+2026-04-10 13:52:14 [DEBUG] [tr] PASS new=43 cache=6 kept=0 deleted=0
+2026-04-10 13:52:32 [DEBUG] [uk] PASS new=43 cache=6 kept=0 deleted=0
+2026-04-10 13:53:14 [DEBUG] [ur] PASS new=43 cache=6 kept=0 deleted=0
+2026-04-10 13:53:22 [DEBUG] [zh-CN] PASS new=43 cache=6 kept=0 deleted=0
+2026-04-10 13:53:24 [DEBUG] [uz] PASS new=43 cache=6 kept=0 deleted=0
+2026-04-10 13:53:33 [DEBUG] [zu] PASS new=43 cache=6 kept=0 deleted=0
+2026-04-10 13:53:33 [INFO] 
+================================================================================
+2026-04-10 13:53:33 [INFO] ✨ HOÀN THÀNH!
+2026-04-10 13:53:33 [INFO]    ✅ Pass : 74/74 ngôn ngữ
+2026-04-10 13:53:33 [INFO]    ⏱  Thực tế: 27m23s | Dự kiến: 30m13s | Lệch: -2m49s (nhanh hơn)
+2026-04-10 13:53:33 [INFO] ================================================================================
+2026-04-10 13:53:33 [INFO] 📊 Report saved to: report_full.json
+2026-04-10 13:53:33 [INFO] 📝 Log saved to: translate_full.log

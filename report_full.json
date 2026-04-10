@@ -1,0 +1,600 @@
+{
+  "duration_seconds": 1643.7,
+  "languages_total": 74,
+  "languages_passed": 74,
+  "languages_failed": 0,
+  "results": {
+    "bn": {
+      "status": "pass",
+      "language": "Bengali",
+      "new": 43,
+      "cache": 6,
+      "kept": 0,
+      "deleted": 0
+    },
+    "ar": {
+      "status": "pass",
+      "language": "Arabic",
+      "new": 43,
+      "cache": 6,
+      "kept": 0,
+      "deleted": 0
+    },
+    "as": {
+      "status": "pass",
+      "language": "Assamese",
+      "new": 43,
+      "cache": 6,
+      "kept": 0,
+      "deleted": 0
+    },
+    "am": {
+      "status": "pass",
+      "language": "Amharic",
+      "new": 43,
+      "cache": 6,
+      "kept": 0,
+      "deleted": 0
+    },
+    "bg": {
+      "status": "pass",
+      "language": "Bulgarian",
+      "new": 43,
+      "cache": 6,
+      "kept": 0,
+      "deleted": 0
+    },
+    "af": {
+      "status": "pass",
+      "language": "Afrikaans",
+      "new": 43,
+      "cache": 6,
+      "kept": 0,
+      "deleted": 0
+    },
+    "az": {
+      "status": "pass",
+      "language": "Azerbaijani",
+      "new": 43,
+      "cache": 6,
+      "kept": 0,
+      "deleted": 0
+    },
+    "be": {
+      "status": "pass",
+      "language": "Belarusian",
+      "new": 43,
+      "cache": 6,
+      "kept": 0,
+      "deleted": 0
+    },
+    "en": {
+      "status": "pass",
+      "language": "English",
+      "new": 43,
+      "cache": 6,
+      "kept": 0,
+      "deleted": 0
+    },
+    "cs": {
+      "status": "pass",
+      "language": "Czech",
+      "new": 43,
+      "cache": 6,
+      "kept": 0,
+      "deleted": 0
+    },
+    "de": {
+      "status": "pass",
+      "language": "German",
+      "new": 43,
+      "cache": 6,
+      "kept": 0,
+      "deleted": 0
+    },
+    "el": {
+      "status": "pass",
+      "language": "Greek",
+      "new": 43,
+      "cache": 6,
+      "kept": 0,
+      "deleted": 0
+    },
+    "da": {
+      "status": "pass",
+      "language": "Danish",
+      "new": 43,
+      "cache": 6,
+      "kept": 0,
+      "deleted": 0
+    },
+    "bs": {
+      "status": "pass",
+      "language": "Bosnian",
+      "new": 43,
+      "cache": 6,
+      "kept": 0,
+      "deleted": 0
+    },
+    "fr": {
+      "status": "pass",
+      "language": "French",
+      "new": 0,
+      "cache": 2,
+      "kept": 47,
+      "deleted": 0
+    },
+    "ca": {
+      "status": "pass",
+      "language": "Catalan",
+      "new": 43,
+      "cache": 6,
+      "kept": 0,
+      "deleted": 0
+    },
+    "es": {
+      "status": "pass",
+      "language": "Spanish",
+      "new": 43,
+      "cache": 6,
+      "kept": 0,
+      "deleted": 0
+    },
+    "et": {
+      "status": "pass",
+      "language": "Estonian",
+      "new": 43,
+      "cache": 6,
+      "kept": 0,
+      "deleted": 0
+    },
+    "fa": {
+      "status": "pass",
+      "language": "Farsi",
+      "new": 43,
+      "cache": 6,
+      "kept": 0,
+      "deleted": 0
+    },
+    "gu": {
+      "status": "pass",
+      "language": "Gujarati",
+      "new": 43,
+      "cache": 6,
+      "kept": 0,
+      "deleted": 0
+    },
+    "hi": {
+      "status": "pass",
+      "language": "Hindi",
+      "new": 43,
+      "cache": 6,
+      "kept": 0,
+      "deleted": 0
+    },
+    "fi": {
+      "status": "pass",
+      "language": "Finnish",
+      "new": 43,
+      "cache": 6,
+      "kept": 0,
+      "deleted": 0
+    },
+    "eu": {
+      "status": "pass",
+      "language": "Basque",
+      "new": 43,
+      "cache": 6,
+      "kept": 0,
+      "deleted": 0
+    },
+    "gl": {
+      "status": "pass",
+      "language": "Galician",
+      "new": 43,
+      "cache": 6,
+      "kept": 0,
+      "deleted": 0
+    },
+    "id": {
+      "status": "pass",
+      "language": "Indonesian",
+      "new": 43,
+      "cache": 6,
+      "kept": 0,
+      "deleted": 0
+    },
+    "hy": {
+      "status": "pass",
+      "language": "Armenian",
+      "new": 43,
+      "cache": 6,
+      "kept": 0,
+      "deleted": 0
+    },
+    "hr": {
+      "status": "pass",
+      "language": "Croatian",
+      "new": 43,
+      "cache": 6,
+      "kept": 0,
+      "deleted": 0
+    },
+    "hu": {
+      "status": "pass",
+      "language": "Hungarian",
+      "new": 43,
+      "cache": 6,
+      "kept": 0,
+      "deleted": 0
+    },
+    "it": {
+      "status": "pass",
+      "language": "Italian",
+      "new": 43,
+      "cache": 6,
+      "kept": 0,
+      "deleted": 0
+    },
+    "iw": {
+      "status": "pass",
+      "language": "Hebrew",
+      "new": 43,
+      "cache": 6,
+      "kept": 0,
+      "deleted": 0
+    },
+    "is": {
+      "status": "pass",
+      "language": "Icelandic",
+      "new": 43,
+      "cache": 6,
+      "kept": 0,
+      "deleted": 0
+    },
+    "ja": {
+      "status": "pass",
+      "language": "Japanese",
+      "new": 43,
+      "cache": 6,
+      "kept": 0,
+      "deleted": 0
+    },
+    "kn": {
+      "status": "pass",
+      "language": "Kannada",
+      "new": 43,
+      "cache": 6,
+      "kept": 0,
+      "deleted": 0
+    },
+    "ka": {
+      "status": "pass",
+      "language": "Georgian",
+      "new": 43,
+      "cache": 6,
+      "kept": 0,
+      "deleted": 0
+    },
+    "km": {
+      "status": "pass",
+      "language": "Khmer",
+      "new": 43,
+      "cache": 6,
+      "kept": 0,
+      "deleted": 0
+    },
+    "kk": {
+      "status": "pass",
+      "language": "Kazakh",
+      "new": 43,
+      "cache": 6,
+      "kept": 0,
+      "deleted": 0
+    },
+    "ko": {
+      "status": "pass",
+      "language": "Korean",
+      "new": 43,
+      "cache": 6,
+      "kept": 0,
+      "deleted": 0
+    },
+    "ky": {
+      "status": "pass",
+      "language": "Kyrgyz",
+      "new": 43,
+      "cache": 6,
+      "kept": 0,
+      "deleted": 0
+    },
+    "fil": {
+      "status": "pass",
+      "language": "Filipino",
+      "new": 43,
+      "cache": 6,
+      "kept": 0,
+      "deleted": 0
+    },
+    "lo": {
+      "status": "pass",
+      "language": "Lao",
+      "new": 43,
+      "cache": 6,
+      "kept": 0,
+      "deleted": 0
+    },
+    "ml": {
+      "status": "pass",
+      "language": "Malayalam",
+      "new": 43,
+      "cache": 6,
+      "kept": 0,
+      "deleted": 0
+    },
+    "lv": {
+      "status": "pass",
+      "language": "Latvian",
+      "new": 43,
+      "cache": 6,
+      "kept": 0,
+      "deleted": 0
+    },
+    "lt": {
+      "status": "pass",
+      "language": "Lithuanian",
+      "new": 43,
+      "cache": 6,
+      "kept": 0,
+      "deleted": 0
+    },
+    "mk": {
+      "status": "pass",
+      "language": "Macedonian",
+      "new": 43,
+      "cache": 6,
+      "kept": 0,
+      "deleted": 0
+    },
+    "mn": {
+      "status": "pass",
+      "language": "Mongolian",
+      "new": 43,
+      "cache": 6,
+      "kept": 0,
+      "deleted": 0
+    },
+    "mr": {
+      "status": "pass",
+      "language": "Marathi",
+      "new": 43,
+      "cache": 6,
+      "kept": 0,
+      "deleted": 0
+    },
+    "ms": {
+      "status": "pass",
+      "language": "Malay",
+      "new": 43,
+      "cache": 6,
+      "kept": 0,
+      "deleted": 0
+    },
+    "my": {
+      "status": "pass",
+      "language": "Burmese",
+      "new": 43,
+      "cache": 6,
+      "kept": 0,
+      "deleted": 0
+    },
+    "ne": {
+      "status": "pass",
+      "language": "Nepali",
+      "new": 43,
+      "cache": 6,
+      "kept": 0,
+      "deleted": 0
+    },
+    "nl": {
+      "status": "pass",
+      "language": "Dutch",
+      "new": 43,
+      "cache": 6,
+      "kept": 0,
+      "deleted": 0
+    },
+    "pa": {
+      "status": "pass",
+      "language": "Punjabi",
+      "new": 43,
+      "cache": 6,
+      "kept": 0,
+      "deleted": 0
+    },
+    "or": {
+      "status": "pass",
+      "language": "Odia",
+      "new": 43,
+      "cache": 6,
+      "kept": 0,
+      "deleted": 0
+    },
+    "pl": {
+      "status": "pass",
+      "language": "Polish",
+      "new": 43,
+      "cache": 6,
+      "kept": 0,
+      "deleted": 0
+    },
+    "pt": {
+      "status": "pass",
+      "language": "Portuguese",
+      "new": 43,
+      "cache": 6,
+      "kept": 0,
+      "deleted": 0
+    },
+    "ru": {
+      "status": "pass",
+      "language": "Russian",
+      "new": 43,
+      "cache": 6,
+      "kept": 0,
+      "deleted": 0
+    },
+    "ro": {
+      "status": "pass",
+      "language": "Romanian",
+      "new": 43,
+      "cache": 6,
+      "kept": 0,
+      "deleted": 0
+    },
+    "si": {
+      "status": "pass",
+      "language": "Sinhala",
+      "new": 43,
+      "cache": 6,
+      "kept": 0,
+      "deleted": 0
+    },
+    "sk": {
+      "status": "pass",
+      "language": "Slovak",
+      "new": 43,
+      "cache": 6,
+      "kept": 0,
+      "deleted": 0
+    },
+    "sq": {
+      "status": "pass",
+      "language": "Albanian",
+      "new": 43,
+      "cache": 6,
+      "kept": 0,
+      "deleted": 0
+    },
+    "sl": {
+      "status": "pass",
+      "language": "Slovenian",
+      "new": 43,
+      "cache": 6,
+      "kept": 0,
+      "deleted": 0
+    },
+    "sr": {
+      "status": "pass",
+      "language": "Serbian",
+      "new": 43,
+      "cache": 6,
+      "kept": 0,
+      "deleted": 0
+    },
+    "ta": {
+      "status": "pass",
+      "language": "Tamil",
+      "new": 43,
+      "cache": 6,
+      "kept": 0,
+      "deleted": 0
+    },
+    "sv": {
+      "status": "pass",
+      "language": "Swedish",
+      "new": 43,
+      "cache": 6,
+      "kept": 0,
+      "deleted": 0
+    },
+    "te": {
+      "status": "pass",
+      "language": "Telugu",
+      "new": 43,
+      "cache": 6,
+      "kept": 0,
+      "deleted": 0
+    },
+    "vi": {
+      "status": "pass",
+      "language": "Vietnamese",
+      "new": 0,
+      "cache": 0,
+      "kept": 49,
+      "deleted": 0
+    },
+    "sw": {
+      "status": "pass",
+      "language": "Swahili",
+      "new": 43,
+      "cache": 6,
+      "kept": 0,
+      "deleted": 0
+    },
+    "th": {
+      "status": "pass",
+      "language": "Thai",
+      "new": 43,
+      "cache": 6,
+      "kept": 0,
+      "deleted": 0
+    },
+    "nb": {
+      "status": "pass",
+      "language": "Norwegian",
+      "new": 43,
+      "cache": 6,
+      "kept": 0,
+      "deleted": 0
+    },
+    "tr": {
+      "status": "pass",
+      "language": "Turkish",
+      "new": 43,
+      "cache": 6,
+      "kept": 0,
+      "deleted": 0
+    },
+    "uk": {
+      "status": "pass",
+      "language": "Ukrainian",
+      "new": 43,
+      "cache": 6,
+      "kept": 0,
+      "deleted": 0
+    },
+    "ur": {
+      "status": "pass",
+      "language": "Urdu",
+      "new": 43,
+      "cache": 6,
+      "kept": 0,
+      "deleted": 0
+    },
+    "zh-CN": {
+      "status": "pass",
+      "language": "Chinese",
+      "new": 43,
+      "cache": 6,
+      "kept": 0,
+      "deleted": 0
+    },
+    "uz": {
+      "status": "pass",
+      "language": "Uzbek",
+      "new": 43,
+      "cache": 6,
+      "kept": 0,
+      "deleted": 0
+    },
+    "zu": {
+      "status": "pass",
+      "language": "Zulu",
+      "new": 43,
+      "cache": 6,
+      "kept": 0,
+      "deleted": 0
+    }
+  }
+}
