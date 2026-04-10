@@ -671,6 +671,42 @@ finally:
 
 
 # ===========================================================================
+# Test 11: --only language filter
+# ===========================================================================
+print("\n── TEST 11: --only language filter ──────────────────────────")
+
+tmp_dir, source_path, lang_path, res_dir = setup_workspace()
+try:
+    # languages.json has vi and fr
+    with patch("translate.throttled_translate", side_effect=mock_translate):
+        with patch("translate.os.path.dirname", return_value=tmp_dir):
+            main(source_path, lang_path=lang_path, output_dir=res_dir,
+                 threads=2, only=["vi"])
+
+    # Only Vietnamese should be created
+    check_true("--only vi: Vietnamese output exists",
+               os.path.exists(os.path.join(res_dir, "values-vi", "strings.xml")))
+    check_true("--only vi: French output NOT created",
+               not os.path.exists(os.path.join(res_dir, "values-fr", "strings.xml")))
+
+    # Clean up for next sub-test
+    shutil.rmtree(os.path.join(res_dir, "values-vi"), ignore_errors=True)
+
+    # Test multiple --only
+    with patch("translate.throttled_translate", side_effect=mock_translate):
+        with patch("translate.os.path.dirname", return_value=tmp_dir):
+            main(source_path, lang_path=lang_path, output_dir=res_dir,
+                 threads=2, only=["vi", "fr"])
+
+    check_true("--only vi fr: both outputs exist",
+               os.path.exists(os.path.join(res_dir, "values-vi", "strings.xml")) and
+               os.path.exists(os.path.join(res_dir, "values-fr", "strings.xml")))
+
+finally:
+    shutil.rmtree(tmp_dir, ignore_errors=True)
+
+
+# ===========================================================================
 # Summary
 # ===========================================================================
 print("\n" + "=" * 60)

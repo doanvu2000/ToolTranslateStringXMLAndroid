@@ -15,8 +15,9 @@
 
 - [x] **Story 1 (P2)**: Dry-run mode — `--dry-run` CLI flag, skip file write + validation, 3 integration tests
 
+- [x] **Story 11 (P2)**: `--only` language filter — filter by ISO codes, case-insensitive, 3 integration tests
+
 ## Backlog (P2)
 - [ ] **Story 5**: Config file support
 - [ ] **Story 10**: Translation report JSON
-- [ ] **Story 11**: `--only` language filter
 - [ ] **Story 12**: Cache management CLI

@@ -596,7 +596,7 @@ def translate_language(thread_idx, iso_code, language_name, input_xml_path, res_
 
 
 def main(input_arg, lang_path=None, output_dir=None, threads=None, overrides_path=None,
-         log_file=None, dry_run=False):
+         log_file=None, dry_run=False, only=None):
     setup_logging(log_file)
 
     input_xml = os.path.join(input_arg, "strings.xml") if os.path.isdir(input_arg) else input_arg
@@ -619,6 +619,18 @@ def main(input_arg, lang_path=None, output_dir=None, threads=None, overrides_pat
     if not languages:
         logger.error(f"Danh sách ngôn ngữ trống hoặc không đọc được: {lang_path}")
         sys.exit(1)
+
+    # Filter languages if --only specified
+    if only:
+        only_set = {code.strip().lower() for code in only}
+        filtered = [l for l in languages if l["isoCode"].lower() in only_set]
+        skipped = len(languages) - len(filtered)
+        if not filtered:
+            logger.error(f"Không tìm thấy ngôn ngữ nào khớp --only: {', '.join(only)}")
+            sys.exit(1)
+        if skipped:
+            logger.info(f"🔍 --only filter: {len(filtered)} ngôn ngữ (bỏ qua {skipped})")
+        languages = filtered
 
     translation_cache = TranslationCache(cache_db_path)
 
@@ -758,7 +770,13 @@ if __name__ == "__main__":
         action="store_true",
         help="Chạy thử — dịch và đếm nhưng không ghi file output",
     )
+    parser.add_argument(
+        "--only",
+        nargs="+",
+        metavar="LANG",
+        help="Chỉ dịch các ngôn ngữ chỉ định (vd: --only vi fr zh-CN)",
+    )
     args = parser.parse_args()
     main(args.source, lang_path=args.languages, output_dir=args.output,
          threads=args.threads, overrides_path=args.overrides, log_file=args.log_file,
-         dry_run=args.dry_run)
+         dry_run=args.dry_run, only=args.only)
