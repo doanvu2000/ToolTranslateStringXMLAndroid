@@ -142,6 +142,57 @@ class TranslationCache:
             self.conn.commit()
         return deleted
 
+    def check_coverage(self, source_texts, iso_codes=None):
+        """Check how many source texts already have cached translations.
+
+        Args:
+            source_texts: list of source text strings to check
+            iso_codes: optional list of ISO codes to check against.
+                       If None, checks all languages in cache.
+
+        Returns dict:
+            { "total_strings": int,
+              "languages": { iso: { "cached": int, "missing": int, "percent": float } },
+              "fully_cached": [iso codes with 100%],
+              "partially_cached": [iso codes with >0% but <100%],
+              "not_cached": [iso codes with 0%] }
+        """
+        with self.lock:
+            if iso_codes is None:
+                iso_codes = [row[0] for row in self.conn.execute(
+                    "SELECT DISTINCT iso_code FROM translations ORDER BY iso_code"
+                ).fetchall()]
+
+        total = len(source_texts)
+        result = {
+            "total_strings": total,
+            "languages": {},
+            "fully_cached": [],
+            "partially_cached": [],
+            "not_cached": [],
+        }
+
+        for iso in iso_codes:
+            cached = 0
+            with self.lock:
+                for text in source_texts:
+                    row = self.conn.execute(
+                        "SELECT 1 FROM translations WHERE iso_code = ? AND source_text = ?",
+                        (iso, text),
+                    ).fetchone()
+                    if row:
+                        cached += 1
+            missing = total - cached
+            pct = (cached / total * 100) if total > 0 else 0.0
+            result["languages"][iso] = {"cached": cached, "missing": missing, "percent": round(pct, 1)}
+            if cached == total:
+                result["fully_cached"].append(iso)
+            elif cached > 0:
+                result["partially_cached"].append(iso)
+            else:
+                result["not_cached"].append(iso)
+        return result
+
     def close(self):
         with self.lock:
             self.conn.close()
@@ -829,8 +880,8 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--cache",
-        choices=["stats", "clear"],
-        help="Quản lý cache: stats (xem thống kê), clear (xoá toàn bộ)",
+        choices=["stats", "clear", "check"],
+        help="Quản lý cache: stats (thống kê), clear (xoá), check (kiểm tra coverage từ file input)",
     )
     parser.add_argument(
         "--cache-clear-lang",
@@ -883,6 +934,40 @@ if __name__ == "__main__":
             total, _ = cache.stats()
             cache.clear()
             print(f"🗑  Đã xoá {total} entries từ cache")
+        elif args.cache == "check":
+            # Extract source texts from input XML
+            input_xml = os.path.join(args.source, "strings.xml") if os.path.isdir(args.source) else args.source
+            if not os.path.isfile(input_xml):
+                print(f"❌ Không tìm thấy file: {input_xml}")
+                sys.exit(1)
+            with open(input_xml, 'r', encoding='utf-8') as f:
+                source_xml = f.read()
+            root = parse_xml_with_comments(preprocess_cdata(source_xml))
+            source_texts = []
+            for s in root.findall('string'):
+                if s.get('translatable') != 'false':
+                    source_texts.append(get_inner_xml(s).strip())
+            for arr in root.findall('string-array'):
+                if arr.get('translatable') != 'false':
+                    for item in arr.findall('item'):
+                        source_texts.append(get_inner_xml(item).strip())
+            for plu in root.findall('plurals'):
+                if plu.get('translatable') != 'false':
+                    for item in plu.findall('item'):
+                        source_texts.append(get_inner_xml(item).strip())
+
+            iso_filter = [c.strip() for c in args.only] if args.only else None
+            result = cache.check_coverage(source_texts, iso_codes=iso_filter)
+
+            print(f"📊 Cache coverage cho {result['total_strings']} strings:")
+            print(f"   ✅ Fully cached : {len(result['fully_cached'])} ngôn ngữ")
+            print(f"   🔶 Partial      : {len(result['partially_cached'])} ngôn ngữ")
+            print(f"   ❌ Not cached   : {len(result['not_cached'])} ngôn ngữ")
+            if result['partially_cached']:
+                print("\n   Chi tiết (partial):")
+                for iso in result['partially_cached']:
+                    info = result['languages'][iso]
+                    print(f"      {iso}: {info['cached']}/{result['total_strings']} ({info['percent']}%)")
         if args.cache_clear_lang:
             deleted = cache.clear_language(args.cache_clear_lang)
             print(f"🗑  Đã xoá {deleted} entries cho [{args.cache_clear_lang}]")
