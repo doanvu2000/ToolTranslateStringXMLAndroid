@@ -19,6 +19,7 @@
 
 - [x] **Story 10 (P2)**: Translation report JSON — `--report` CLI option, per-language pass/fail/counts, 11 integration tests
 
+- [x] **Story 12 (P2)**: Cache management CLI — `--cache stats/clear`, `--cache-clear-lang`, stats/clear/clear_language methods, 8 unit tests
+
 ## Backlog (P2)
 - [ ] **Story 5**: Config file support
-- [ ] **Story 12**: Cache management CLI

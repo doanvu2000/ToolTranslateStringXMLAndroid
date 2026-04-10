@@ -369,6 +369,43 @@ check("All error types are distinct",
       len({TranslationAPIError, XMLProcessingError, FileIOError}) == 3, True)
 
 # ===========================================================================
+# 9. Cache management
+# ===========================================================================
+print("\n── 9. CACHE MANAGEMENT ──────────────────────────────────────")
+
+with tempfile.TemporaryDirectory() as tmp_dir:
+    db_path = os.path.join(tmp_dir, "cache_mgmt.db")
+    cache = TranslationCache(db_path)
+    try:
+        # Populate cache
+        cache.set("vi", "Hello", "Xin chào")
+        cache.set("vi", "World", "Thế giới")
+        cache.set("fr", "Hello", "Bonjour")
+
+        # stats
+        total, langs = cache.stats()
+        check("cache stats: total", total, 3)
+        check("cache stats: lang count", len(langs), 2)
+
+        # clear_language
+        deleted = cache.clear_language("fr")
+        check("cache clear_language: deleted count", deleted, 1)
+        total2, _ = cache.stats()
+        check("cache clear_language: total after", total2, 2)
+        check("cache clear_language: fr entry gone",
+              cache.get("fr", "Hello"), None)
+        check("cache clear_language: vi entries kept",
+              cache.get("vi", "Hello"), "Xin chào")
+
+        # clear all
+        cache.clear()
+        total3, langs3 = cache.stats()
+        check("cache clear: total is 0", total3, 0)
+        check("cache clear: no languages", len(langs3), 0)
+    finally:
+        cache.close()
+
+# ===========================================================================
 # Summary
 # ===========================================================================
 print("\n" + "=" * 60)

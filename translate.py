@@ -118,6 +118,30 @@ class TranslationCache:
             )
             self.conn.commit()
 
+    def stats(self):
+        """Return cache statistics: total entries, per-language counts."""
+        with self.lock:
+            total = self.conn.execute("SELECT COUNT(*) FROM translations").fetchone()[0]
+            langs = self.conn.execute(
+                "SELECT iso_code, COUNT(*) FROM translations GROUP BY iso_code ORDER BY iso_code"
+            ).fetchall()
+        return total, langs
+
+    def clear(self):
+        """Delete all cached translations."""
+        with self.lock:
+            self.conn.execute("DELETE FROM translations")
+            self.conn.commit()
+
+    def clear_language(self, iso_code):
+        """Delete cached translations for a specific language."""
+        with self.lock:
+            deleted = self.conn.execute(
+                "DELETE FROM translations WHERE iso_code = ?", (iso_code,)
+            ).rowcount
+            self.conn.commit()
+        return deleted
+
     def close(self):
         with self.lock:
             self.conn.close()
@@ -803,7 +827,38 @@ if __name__ == "__main__":
         metavar="PATH",
         help="Ghi báo cáo kết quả dạng JSON (per-language pass/fail, counts)",
     )
+    parser.add_argument(
+        "--cache",
+        choices=["stats", "clear"],
+        help="Quản lý cache: stats (xem thống kê), clear (xoá toàn bộ)",
+    )
+    parser.add_argument(
+        "--cache-clear-lang",
+        metavar="LANG",
+        help="Xoá cache cho ngôn ngữ chỉ định (vd: --cache-clear-lang vi)",
+    )
     args = parser.parse_args()
+
+    # Handle cache commands
+    if args.cache or args.cache_clear_lang:
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        cache_db_path = os.path.join(base_dir, "translation_cache.db")
+        cache = TranslationCache(cache_db_path)
+        if args.cache == "stats":
+            total, langs = cache.stats()
+            print(f"📊 Cache: {total} entries total")
+            for iso, count in langs:
+                print(f"   {iso}: {count}")
+        elif args.cache == "clear":
+            total, _ = cache.stats()
+            cache.clear()
+            print(f"🗑  Đã xoá {total} entries từ cache")
+        if args.cache_clear_lang:
+            deleted = cache.clear_language(args.cache_clear_lang)
+            print(f"🗑  Đã xoá {deleted} entries cho [{args.cache_clear_lang}]")
+        cache.close()
+        sys.exit(0)
+
     main(args.source, lang_path=args.languages, output_dir=args.output,
          threads=args.threads, overrides_path=args.overrides, log_file=args.log_file,
          dry_run=args.dry_run, only=args.only, report_path=args.report)
