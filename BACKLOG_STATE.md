@@ -9,8 +9,9 @@
 - [x] **Story 9 (P1)**: Specific error handling — custom exceptions, classified catch blocks, error counting summary, 8 tests
 - [x] **Story 2 (P1)**: Preserve XML comments & attributes — CommentedTreeBuilder parser, 7 integration tests
 
+- [x] **Story 3 (P1)**: File logging — `--log-file` CLI option, logger with timestamps + DEBUG level, 4 integration tests
+
 ## Up Next (P1)
-- [ ] **Story 3**: File logging
 - [ ] **Story 4**: Regional language variants (pt-BR, zh-TW)
 
 ## Backlog (P2)

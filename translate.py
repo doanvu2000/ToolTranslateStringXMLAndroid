@@ -1,6 +1,7 @@
 import argparse
 import html as html_lib
 import json
+import logging
 import os
 import re
 import sqlite3
@@ -33,6 +34,28 @@ class FileIOError(Exception):
 # --- CONFIG ---
 MAX_THREADS = 8
 TRANSLATE_DELAY = 0.5  # minimum seconds between any two API calls (global, across all threads)
+
+# --- LOGGING ---
+logger = logging.getLogger("translate")
+
+
+def setup_logging(log_file=None):
+    """Configure logger. Always logs to console; optionally also to a file."""
+    logger.setLevel(logging.DEBUG)
+    logger.handlers.clear()
+
+    console = logging.StreamHandler(sys.stdout)
+    console.setLevel(logging.INFO)
+    console.setFormatter(logging.Formatter("%(message)s"))
+    logger.addHandler(console)
+
+    if log_file:
+        os.makedirs(os.path.dirname(os.path.abspath(log_file)), exist_ok=True)
+        fh = logging.FileHandler(log_file, encoding="utf-8", mode="w")
+        fh.setLevel(logging.DEBUG)
+        fh.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s] %(message)s",
+                                          datefmt="%Y-%m-%d %H:%M:%S"))
+        logger.addHandler(fh)
 
 # --- PATTERNS ---
 # Android format specifiers: %s, %d, %1$s, %2$d, %.2f, %%  etc.
@@ -449,9 +472,7 @@ def translate_language(thread_idx, iso_code, language_name, input_xml_path, res_
                             set_inner_xml(elem, escape_android_chars(translated))
                         new_count += 1
                     except TranslationAPIError as e:
-                        with progress_lock:
-                            sys.stdout.write(f"\n⚠ [{iso_code}] '{raw_content[:30]}': {e}\033[K\n")
-                            sys.stdout.flush()
+                        logger.warning(f"[{iso_code}] '{raw_content[:30]}': {e}")
 
             elif etype == 'arr':
                 arr_items = elem.findall('item')
@@ -473,9 +494,7 @@ def translate_language(thread_idx, iso_code, language_name, input_xml_path, res_
                             set_inner_xml(item, escape_android_chars(translated))
                             new_count += 1
                         except TranslationAPIError as e:
-                            with progress_lock:
-                                sys.stdout.write(f"\n⚠ [{iso_code}] '{raw_item[:30]}': {e}\033[K\n")
-                                sys.stdout.flush()
+                            logger.warning(f"[{iso_code}] '{raw_item[:30]}': {e}")
 
             elif etype == 'plu':
                 plu_items = elem.findall('item')
@@ -497,9 +516,7 @@ def translate_language(thread_idx, iso_code, language_name, input_xml_path, res_
                             set_inner_xml(item, escape_android_chars(translated))
                             new_count += 1
                         except TranslationAPIError as e:
-                            with progress_lock:
-                                sys.stdout.write(f"\n⚠ [{iso_code}] '{raw_item[:30]}': {e}\033[K\n")
-                                sys.stdout.flush()
+                            logger.warning(f"[{iso_code}] '{raw_item[:30]}': {e}")
 
         # --- BƯỚC 4: GHI FILE VÀO THƯ MỤC NGÔN NGỮ ĐÍCH ---
         os.makedirs(dest_folder, exist_ok=True)
@@ -531,40 +548,49 @@ def translate_language(thread_idx, iso_code, language_name, input_xml_path, res_
             raise RuntimeError(f"Output XML validation failed: {ve}") from ve
 
         lang_results[iso_code] = ('pass', language_name)
+        msg = f"✅ {language_name:12} | Mới: {new_count:2} | Up: {update_count:2} | Cũ: {old_keep_count:2} | Xoá: {deleted_count:2}"
+        logger.debug(f"[{iso_code}] PASS new={new_count} cache={update_count} kept={old_keep_count} deleted={deleted_count}")
         with progress_lock:
             thread_status[thread_idx] = ""
-            sys.stdout.write(
-                f"\r✅ {language_name:12} | Mới: {new_count:2} | Up: {update_count:2} | Cũ: {old_keep_count:2} | Xoá: {deleted_count:2}\033[K\n")
+            sys.stdout.write(f"\r{msg}\033[K\n")
             sys.stdout.flush()
 
     except (OSError, IOError) as e:
         lang_results[iso_code] = ('fail', language_name, 'FileIOError', str(e))
+        logger.error(f"[{iso_code}] FileIOError: {e}")
         with progress_lock:
             thread_status[thread_idx] = ""
             sys.stdout.write(f"\r❌ {language_name:12} | File I/O: {str(e)[:60]}\033[K\n")
     except ET.ParseError as e:
         lang_results[iso_code] = ('fail', language_name, 'XMLProcessingError', str(e))
+        logger.error(f"[{iso_code}] XMLProcessingError: {e}")
         with progress_lock:
             thread_status[thread_idx] = ""
             sys.stdout.write(f"\r❌ {language_name:12} | XML lỗi: {str(e)[:60]}\033[K\n")
     except RuntimeError as e:
         lang_results[iso_code] = ('fail', language_name, 'XMLProcessingError', str(e))
+        logger.error(f"[{iso_code}] XMLValidation: {e}")
         with progress_lock:
             thread_status[thread_idx] = ""
             sys.stdout.write(f"\r❌ {language_name:12} | Validation: {str(e)[:60]}\033[K\n")
     except TranslationAPIError as e:
         lang_results[iso_code] = ('fail', language_name, 'TranslationAPIError', str(e))
+        logger.error(f"[{iso_code}] TranslationAPIError: {e}")
         with progress_lock:
             thread_status[thread_idx] = ""
             sys.stdout.write(f"\r❌ {language_name:12} | API lỗi: {str(e)[:60]}\033[K\n")
     except Exception as e:
         lang_results[iso_code] = ('fail', language_name, 'UnexpectedError', str(e))
+        logger.error(f"[{iso_code}] UnexpectedError: {e}")
         with progress_lock:
             thread_status[thread_idx] = ""
             sys.stdout.write(f"\r❌ {language_name:12} | Lỗi: {str(e)[:60]}\033[K\n")
 
 
-def main(input_arg, lang_path=None, output_dir=None, threads=None, overrides_path=None):
+def main(input_arg, lang_path=None, output_dir=None, threads=None, overrides_path=None,
+         log_file=None):
+    setup_logging(log_file)
+
     input_xml = os.path.join(input_arg, "strings.xml") if os.path.isdir(input_arg) else input_arg
     base_dir = os.path.dirname(os.path.abspath(__file__))
 
@@ -578,12 +604,12 @@ def main(input_arg, lang_path=None, output_dir=None, threads=None, overrides_pat
     cache_db_path = os.path.join(base_dir, "translation_cache.db")
 
     if not os.path.isfile(input_xml):
-        print(f"❌ Không tìm thấy file nguồn: {input_xml}")
+        logger.error(f"Không tìm thấy file nguồn: {input_xml}")
         sys.exit(1)
 
     languages = load_json(lang_path)
     if not languages:
-        print(f"❌ Danh sách ngôn ngữ trống hoặc không đọc được: {lang_path}")
+        logger.error(f"Danh sách ngôn ngữ trống hoặc không đọc được: {lang_path}")
         sys.exit(1)
 
     translation_cache = TranslationCache(cache_db_path)
@@ -597,14 +623,14 @@ def main(input_arg, lang_path=None, output_dir=None, threads=None, overrides_pat
     if overrides_path:
         overrides = load_json(overrides_path)
         if overrides:
-            print(f"📋 Overrides: {len(overrides)} token(s) from {os.path.basename(overrides_path)}")
+            logger.info(f"📋 Overrides: {len(overrides)} token(s) from {os.path.basename(overrides_path)}")
 
     # Detect CDATA element names once from the source file
     try:
         with open(input_xml, 'r', encoding='utf-8') as f:
             source_xml_text = f.read()
     except OSError as e:
-        print(f"❌ Không đọc được file nguồn: {e}")
+        logger.error(f"Không đọc được file nguồn: {e}")
         sys.exit(1)
     cdata_names = extract_cdata_names(source_xml_text)
 
@@ -624,11 +650,11 @@ def main(input_arg, lang_path=None, output_dir=None, threads=None, overrides_pat
     # Worst-case estimate: all strings need API calls, rate limited globally
     estimated_seconds = translatable_count * num_languages * TRANSLATE_DELAY
 
-    print(f"🚀 SYNC MODE (PROTECTED ORIGIN)")
-    print("=" * 80)
-    print(f"📊 Ngôn ngữ: {num_languages} | Luồng đồng thời: {threads} | Strings/ngôn ngữ: {translatable_count}")
-    print(f"⏱  Thời gian dự kiến (worst-case): {format_duration(estimated_seconds)}")
-    print("=" * 80)
+    logger.info(f"🚀 SYNC MODE (PROTECTED ORIGIN)")
+    logger.info("=" * 80)
+    logger.info(f"📊 Ngôn ngữ: {num_languages} | Luồng đồng thời: {threads} | Strings/ngôn ngữ: {translatable_count}")
+    logger.info(f"⏱  Thời gian dự kiến (worst-case): {format_duration(estimated_seconds)}")
+    logger.info("=" * 80)
 
     start_time = time.time()
     lang_results = {}
@@ -662,19 +688,22 @@ def main(input_arg, lang_path=None, output_dir=None, threads=None, overrides_pat
     for _, error_type, _ in failed:
         error_counts[error_type] = error_counts.get(error_type, 0) + 1
 
-    print("\n" + "=" * 80)
-    print(f"✨ HOÀN THÀNH!")
-    print(f"   ✅ Pass : {len(passed)}/{num_languages} ngôn ngữ")
+    logger.info("\n" + "=" * 80)
+    logger.info(f"✨ HOÀN THÀNH!")
+    logger.info(f"   ✅ Pass : {len(passed)}/{num_languages} ngôn ngữ")
     if failed:
-        print(f"   ❌ Fail : {len(failed)} ngôn ngữ")
+        logger.info(f"   ❌ Fail : {len(failed)} ngôn ngữ")
         # Error summary by type
         for error_type, count in sorted(error_counts.items()):
-            print(f"      [{error_type}] × {count}")
+            logger.info(f"      [{error_type}] × {count}")
         # Detail per language
         for name, error_type, err in failed:
-            print(f"      • {name} ({error_type}): {err[:70]}")
-    print(f"   ⏱  Thực tế: {format_duration(actual_seconds)} | Dự kiến: {format_duration(estimated_seconds)} | Lệch: {diff_str}")
-    print("=" * 80)
+            logger.info(f"      • {name} ({error_type}): {err[:70]}")
+    logger.info(f"   ⏱  Thực tế: {format_duration(actual_seconds)} | Dự kiến: {format_duration(estimated_seconds)} | Lệch: {diff_str}")
+    logger.info("=" * 80)
+
+    if log_file:
+        logger.info(f"📝 Log saved to: {log_file}")
 
 
 if __name__ == "__main__":
@@ -709,6 +738,11 @@ if __name__ == "__main__":
         metavar="PATH",
         help="Đường dẫn tới overrides.json — các token giữ nguyên không dịch (mặc định: overrides.json kế bên script)",
     )
+    parser.add_argument(
+        "--log-file",
+        metavar="PATH",
+        help="Ghi log chi tiết ra file (timestamps + DEBUG level)",
+    )
     args = parser.parse_args()
     main(args.source, lang_path=args.languages, output_dir=args.output,
-         threads=args.threads, overrides_path=args.overrides)
+         threads=args.threads, overrides_path=args.overrides, log_file=args.log_file)

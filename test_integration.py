@@ -532,6 +532,41 @@ finally:
 
 
 # ===========================================================================
+# Test 8: File logging — --log-file writes detailed log
+# ===========================================================================
+print("\n── TEST 8: File logging ─────────────────────────────────────")
+
+tmp_dir, source_path, lang_path, res_dir = setup_workspace()
+try:
+    lang1 = [{"isoCode": "vi", "name": "Vietnamese"}]
+    lang_path_1 = os.path.join(tmp_dir, "lang1.json")
+    with open(lang_path_1, "w", encoding="utf-8") as f:
+        json.dump(lang1, f)
+
+    log_path = os.path.join(tmp_dir, "translate.log")
+
+    with patch("translate.throttled_translate", side_effect=mock_translate):
+        with patch("translate.os.path.dirname", return_value=tmp_dir):
+            main(source_path, lang_path=lang_path_1, output_dir=res_dir,
+                 threads=1, log_file=log_path)
+
+    check_true("log file created", os.path.exists(log_path))
+
+    with open(log_path, "r", encoding="utf-8") as f:
+        log_content = f.read()
+
+    # Log file should have timestamps
+    check_true("log has timestamps", "[INFO]" in log_content or "[DEBUG]" in log_content)
+    # Log file should contain pass info
+    check_true("log contains PASS result", "PASS" in log_content)
+    # Log file should contain summary
+    check_true("log contains summary", "HOÀN THÀNH" in log_content or "Pass" in log_content)
+
+finally:
+    shutil.rmtree(tmp_dir, ignore_errors=True)
+
+
+# ===========================================================================
 # Summary
 # ===========================================================================
 print("\n" + "=" * 60)
