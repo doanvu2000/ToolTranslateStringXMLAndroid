@@ -554,7 +554,7 @@ def translate_language(thread_idx, iso_code, language_name, input_xml_path, res_
                     os.remove(dest_file)
                 raise RuntimeError(f"Output XML validation failed: {ve}") from ve
 
-        lang_results[iso_code] = ('pass', language_name)
+        lang_results[iso_code] = ('pass', language_name, new_count, update_count, old_keep_count, deleted_count)
         prefix = "🔍" if dry_run else "✅"
         msg = f"{prefix} {language_name:12} | Mới: {new_count:2} | Up: {update_count:2} | Cũ: {old_keep_count:2} | Xoá: {deleted_count:2}"
         logger.debug(f"[{iso_code}] PASS new={new_count} cache={update_count} kept={old_keep_count} deleted={deleted_count}")
@@ -596,7 +596,7 @@ def translate_language(thread_idx, iso_code, language_name, input_xml_path, res_
 
 
 def main(input_arg, lang_path=None, output_dir=None, threads=None, overrides_path=None,
-         log_file=None, dry_run=False, only=None):
+         log_file=None, dry_run=False, only=None, report_path=None):
     setup_logging(log_file)
 
     input_xml = os.path.join(input_arg, "strings.xml") if os.path.isdir(input_arg) else input_arg
@@ -702,27 +702,49 @@ def main(input_arg, lang_path=None, output_dir=None, threads=None, overrides_pat
     diff_str = (f"+{format_duration(diff_seconds)} (chậm hơn)" if diff_seconds > 0
                 else f"-{format_duration(abs(diff_seconds))} (nhanh hơn)")
 
-    passed = [v[1] for v in lang_results.values() if v[0] == 'pass']
-    failed = [(v[1], v[2], v[3]) for v in lang_results.values() if v[0] == 'fail']
+    passed_results = {k: v for k, v in lang_results.items() if v[0] == 'pass'}
+    failed_results = {k: v for k, v in lang_results.items() if v[0] == 'fail'}
 
     # Count errors by type
     error_counts = {}
-    for _, error_type, _ in failed:
+    for v in failed_results.values():
+        error_type = v[2]
         error_counts[error_type] = error_counts.get(error_type, 0) + 1
 
     logger.info("\n" + "=" * 80)
     logger.info(f"✨ HOÀN THÀNH!")
-    logger.info(f"   ✅ Pass : {len(passed)}/{num_languages} ngôn ngữ")
-    if failed:
-        logger.info(f"   ❌ Fail : {len(failed)} ngôn ngữ")
-        # Error summary by type
+    logger.info(f"   ✅ Pass : {len(passed_results)}/{num_languages} ngôn ngữ")
+    if failed_results:
+        logger.info(f"   ❌ Fail : {len(failed_results)} ngôn ngữ")
         for error_type, count in sorted(error_counts.items()):
             logger.info(f"      [{error_type}] × {count}")
-        # Detail per language
-        for name, error_type, err in failed:
-            logger.info(f"      • {name} ({error_type}): {err[:70]}")
+        for v in failed_results.values():
+            logger.info(f"      • {v[1]} ({v[2]}): {v[3][:70]}")
     logger.info(f"   ⏱  Thực tế: {format_duration(actual_seconds)} | Dự kiến: {format_duration(estimated_seconds)} | Lệch: {diff_str}")
     logger.info("=" * 80)
+
+    # Generate JSON report if requested
+    if report_path:
+        report = {
+            "duration_seconds": round(actual_seconds, 2),
+            "languages_total": num_languages,
+            "languages_passed": len(passed_results),
+            "languages_failed": len(failed_results),
+            "results": {},
+        }
+        for iso, v in passed_results.items():
+            report["results"][iso] = {
+                "status": "pass", "language": v[1],
+                "new": v[2], "cache": v[3], "kept": v[4], "deleted": v[5],
+            }
+        for iso, v in failed_results.items():
+            report["results"][iso] = {
+                "status": "fail", "language": v[1],
+                "error_type": v[2], "error": v[3],
+            }
+        with open(report_path, "w", encoding="utf-8") as f:
+            json.dump(report, f, ensure_ascii=False, indent=2)
+        logger.info(f"📊 Report saved to: {report_path}")
 
     if log_file:
         logger.info(f"📝 Log saved to: {log_file}")
@@ -776,7 +798,12 @@ if __name__ == "__main__":
         metavar="LANG",
         help="Chỉ dịch các ngôn ngữ chỉ định (vd: --only vi fr zh-CN)",
     )
+    parser.add_argument(
+        "--report",
+        metavar="PATH",
+        help="Ghi báo cáo kết quả dạng JSON (per-language pass/fail, counts)",
+    )
     args = parser.parse_args()
     main(args.source, lang_path=args.languages, output_dir=args.output,
          threads=args.threads, overrides_path=args.overrides, log_file=args.log_file,
-         dry_run=args.dry_run, only=args.only)
+         dry_run=args.dry_run, only=args.only, report_path=args.report)

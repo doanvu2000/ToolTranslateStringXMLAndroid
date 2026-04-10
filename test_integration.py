@@ -707,6 +707,46 @@ finally:
 
 
 # ===========================================================================
+# Test 12: Translation report JSON
+# ===========================================================================
+print("\n── TEST 12: Translation report JSON ─────────────────────────")
+
+tmp_dir, source_path, lang_path, res_dir = setup_workspace()
+try:
+    report_path = os.path.join(tmp_dir, "report.json")
+
+    with patch("translate.throttled_translate", side_effect=mock_translate):
+        with patch("translate.os.path.dirname", return_value=tmp_dir):
+            main(source_path, lang_path=lang_path, output_dir=res_dir,
+                 threads=2, report_path=report_path)
+
+    check_true("report: JSON file created", os.path.exists(report_path))
+
+    with open(report_path, "r", encoding="utf-8") as f:
+        report = json.load(f)
+
+    check("report: languages_total", report["languages_total"], 2)
+    check("report: languages_passed", report["languages_passed"], 2)
+    check("report: languages_failed", report["languages_failed"], 0)
+    check_true("report: duration_seconds is number",
+               isinstance(report["duration_seconds"], (int, float)))
+
+    # Check per-language details
+    vi_result = report["results"].get("vi")
+    check_true("report: vi result exists", vi_result is not None)
+    check("report: vi status", vi_result["status"], "pass")
+    check_true("report: vi has new count", "new" in vi_result)
+    check_true("report: vi has cache count", "cache" in vi_result)
+
+    fr_result = report["results"].get("fr")
+    check_true("report: fr result exists", fr_result is not None)
+    check("report: fr status", fr_result["status"], "pass")
+
+finally:
+    shutil.rmtree(tmp_dir, ignore_errors=True)
+
+
+# ===========================================================================
 # Summary
 # ===========================================================================
 print("\n" + "=" * 60)

@@ -17,7 +17,8 @@
 
 - [x] **Story 11 (P2)**: `--only` language filter — filter by ISO codes, case-insensitive, 3 integration tests
 
+- [x] **Story 10 (P2)**: Translation report JSON — `--report` CLI option, per-language pass/fail/counts, 11 integration tests
+
 ## Backlog (P2)
 - [ ] **Story 5**: Config file support
-- [ ] **Story 10**: Translation report JSON
 - [ ] **Story 12**: Cache management CLI
