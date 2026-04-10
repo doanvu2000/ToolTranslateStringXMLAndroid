@@ -20,6 +20,16 @@ if hasattr(sys.stdout, "reconfigure"):
 if hasattr(sys.stderr, "reconfigure"):
     sys.stderr.reconfigure(encoding="utf-8")
 
+# --- ERROR TYPES ---
+class TranslationAPIError(Exception):
+    """Error from Google Translate API (network, rate limit, etc.)."""
+
+class XMLProcessingError(Exception):
+    """Error parsing or writing XML."""
+
+class FileIOError(Exception):
+    """Error reading/writing files on disk."""
+
 # --- CONFIG ---
 MAX_THREADS = 8
 TRANSLATE_DELAY = 0.5  # minimum seconds between any two API calls (global, across all threads)
@@ -92,7 +102,8 @@ class TranslationCache:
 
 def throttled_translate(text, dest, retries=3):
     """Call Google Translate with a global minimum delay between requests.
-    Retries up to `retries` times with exponential backoff on failure."""
+    Retries up to `retries` times with exponential backoff on failure.
+    Raises TranslationAPIError on persistent failure."""
     if GoogleTranslator is None:
         raise ModuleNotFoundError(
             "No module named 'deep_translator'. Install it with: pip install deep-translator"
@@ -108,11 +119,16 @@ def throttled_translate(text, dest, retries=3):
             _last_call_time = time.time()
         try:
             return GoogleTranslator(source='en', target=dest).translate(text)
-        except Exception as e:
+        except (ConnectionError, TimeoutError, OSError) as e:
             last_exc = e
             if attempt < retries - 1:
-                time.sleep(2 ** attempt)  # 1s, 2s before retry 2, 3
-    raise last_exc
+                time.sleep(2 ** attempt)
+        except Exception as e:
+            # Catch-all for unexpected API errors (bad response, auth, etc.)
+            last_exc = e
+            if attempt < retries - 1:
+                time.sleep(2 ** attempt)
+    raise TranslationAPIError(f"API failed after {retries} retries: {last_exc}") from last_exc
 
 
 def load_json(file_path):
@@ -268,7 +284,7 @@ def translate_string(raw_text, iso_code, overrides=None):
     protected, ph_map = protect_translatables(raw_text, overrides=overrides)
     try:
         translated = throttled_translate(protected, iso_code) or protected
-    except Exception:
+    except TranslationAPIError:
         translated = protected  # fallback: giữ nguyên bản gốc, không trả về text đã lowercase
     if ph_map:
         translated = restore_translatables(translated, ph_map)
@@ -413,7 +429,7 @@ def translate_language(thread_idx, iso_code, language_name, input_xml_path, res_
                         else:
                             set_inner_xml(elem, escape_android_chars(translated))
                         new_count += 1
-                    except Exception as e:
+                    except TranslationAPIError as e:
                         with progress_lock:
                             sys.stdout.write(f"\n⚠ [{iso_code}] '{raw_content[:30]}': {e}\033[K\n")
                             sys.stdout.flush()
@@ -437,7 +453,7 @@ def translate_language(thread_idx, iso_code, language_name, input_xml_path, res_
                             translation_cache.set(iso_code, raw_item, translated)
                             set_inner_xml(item, escape_android_chars(translated))
                             new_count += 1
-                        except Exception as e:
+                        except TranslationAPIError as e:
                             with progress_lock:
                                 sys.stdout.write(f"\n⚠ [{iso_code}] '{raw_item[:30]}': {e}\033[K\n")
                                 sys.stdout.flush()
@@ -461,7 +477,7 @@ def translate_language(thread_idx, iso_code, language_name, input_xml_path, res_
                             translation_cache.set(iso_code, raw_item, translated)
                             set_inner_xml(item, escape_android_chars(translated))
                             new_count += 1
-                        except Exception as e:
+                        except TranslationAPIError as e:
                             with progress_lock:
                                 sys.stdout.write(f"\n⚠ [{iso_code}] '{raw_item[:30]}': {e}\033[K\n")
                                 sys.stdout.flush()
@@ -502,8 +518,28 @@ def translate_language(thread_idx, iso_code, language_name, input_xml_path, res_
                 f"\r✅ {language_name:12} | Mới: {new_count:2} | Up: {update_count:2} | Cũ: {old_keep_count:2} | Xoá: {deleted_count:2}\033[K\n")
             sys.stdout.flush()
 
+    except (OSError, IOError) as e:
+        lang_results[iso_code] = ('fail', language_name, 'FileIOError', str(e))
+        with progress_lock:
+            thread_status[thread_idx] = ""
+            sys.stdout.write(f"\r❌ {language_name:12} | File I/O: {str(e)[:60]}\033[K\n")
+    except ET.ParseError as e:
+        lang_results[iso_code] = ('fail', language_name, 'XMLProcessingError', str(e))
+        with progress_lock:
+            thread_status[thread_idx] = ""
+            sys.stdout.write(f"\r❌ {language_name:12} | XML lỗi: {str(e)[:60]}\033[K\n")
+    except RuntimeError as e:
+        lang_results[iso_code] = ('fail', language_name, 'XMLProcessingError', str(e))
+        with progress_lock:
+            thread_status[thread_idx] = ""
+            sys.stdout.write(f"\r❌ {language_name:12} | Validation: {str(e)[:60]}\033[K\n")
+    except TranslationAPIError as e:
+        lang_results[iso_code] = ('fail', language_name, 'TranslationAPIError', str(e))
+        with progress_lock:
+            thread_status[thread_idx] = ""
+            sys.stdout.write(f"\r❌ {language_name:12} | API lỗi: {str(e)[:60]}\033[K\n")
     except Exception as e:
-        lang_results[iso_code] = ('fail', language_name, str(e))
+        lang_results[iso_code] = ('fail', language_name, 'UnexpectedError', str(e))
         with progress_lock:
             thread_status[thread_idx] = ""
             sys.stdout.write(f"\r❌ {language_name:12} | Lỗi: {str(e)[:60]}\033[K\n")
@@ -600,15 +636,24 @@ def main(input_arg, lang_path=None, output_dir=None, threads=None, overrides_pat
                 else f"-{format_duration(abs(diff_seconds))} (nhanh hơn)")
 
     passed = [v[1] for v in lang_results.values() if v[0] == 'pass']
-    failed = [(v[1], v[2]) for v in lang_results.values() if v[0] == 'fail']
+    failed = [(v[1], v[2], v[3]) for v in lang_results.values() if v[0] == 'fail']
+
+    # Count errors by type
+    error_counts = {}
+    for _, error_type, _ in failed:
+        error_counts[error_type] = error_counts.get(error_type, 0) + 1
 
     print("\n" + "=" * 80)
     print(f"✨ HOÀN THÀNH!")
     print(f"   ✅ Pass : {len(passed)}/{num_languages} ngôn ngữ")
     if failed:
         print(f"   ❌ Fail : {len(failed)} ngôn ngữ")
-        for name, err in failed:
-            print(f"      • {name}: {err[:80]}")
+        # Error summary by type
+        for error_type, count in sorted(error_counts.items()):
+            print(f"      [{error_type}] × {count}")
+        # Detail per language
+        for name, error_type, err in failed:
+            print(f"      • {name} ({error_type}): {err[:70]}")
     print(f"   ⏱  Thực tế: {format_duration(actual_seconds)} | Dự kiến: {format_duration(estimated_seconds)} | Lệch: {diff_str}")
     print("=" * 80)
 

@@ -19,6 +19,9 @@ sys.path.insert(0, os.path.dirname(__file__))
 # Import helpers from translate.py
 from translate import (
     TranslationCache,
+    TranslationAPIError,
+    XMLProcessingError,
+    FileIOError,
     escape_android_chars,
     protect_translatables,
     restore_translatables,
@@ -28,6 +31,7 @@ from translate import (
     postprocess_cdata,
     extract_cdata_names,
     translate_string,
+    translate_language,
 )
 
 PASS = "✅ PASS"
@@ -311,6 +315,58 @@ with patch('translate.throttled_translate', side_effect=mock_translate):
 protected4, ph_map4 = protect_translatables("Hello AM world", overrides=None)
 check("no overrides: AM left in text",
       "AM" in protected4, True)
+
+# ===========================================================================
+# 8. Error classification
+# ===========================================================================
+print("\n── 8. ERROR CLASSIFICATION ──────────────────────────────────")
+
+# 8a. TranslationAPIError is raised by throttled_translate on persistent failure
+check("TranslationAPIError is subclass of Exception",
+      issubclass(TranslationAPIError, Exception), True)
+
+# 8b. translate_string catches TranslationAPIError and falls back gracefully
+def mock_translate_fail(text, dest):
+    raise TranslationAPIError("API failed after 3 retries: timeout")
+
+with patch('translate.throttled_translate', side_effect=mock_translate_fail):
+    result = translate_string("Hello world", 'vi')
+    check("translate_string fallback on TranslationAPIError",
+          result, "Hello world")
+
+# 8c. translate_language classifies OSError as FileIOError in results
+lang_results = {}
+with tempfile.TemporaryDirectory() as tmp_dir:
+    bad_xml = os.path.join(tmp_dir, "nonexistent", "strings.xml")
+    cache = TranslationCache(os.path.join(tmp_dir, "cache.db"))
+    translate_language(0, 'vi', 'Vietnamese', bad_xml, tmp_dir,
+                       cache, set(), lang_results)
+    cache.close()
+    check("OSError classified as FileIOError in lang_results",
+          lang_results.get('vi', (None,))[0], 'fail')
+    check("OSError error_type is FileIOError",
+          lang_results.get('vi', (None, None, None))[2], 'FileIOError')
+
+# 8d. translate_language classifies XML ParseError in results
+lang_results2 = {}
+with tempfile.TemporaryDirectory() as tmp_dir:
+    bad_xml = os.path.join(tmp_dir, "strings.xml")
+    with open(bad_xml, 'w', encoding='utf-8') as f:
+        f.write("<resources><broken xml")
+    cache2 = TranslationCache(os.path.join(tmp_dir, "cache.db"))
+    translate_language(0, 'vi', 'Vietnamese', bad_xml, tmp_dir,
+                       cache2, set(), lang_results2)
+    cache2.close()
+    check("ParseError classified as XMLProcessingError",
+          lang_results2.get('vi', (None, None, None))[2], 'XMLProcessingError')
+
+# 8e. Custom exception classes exist and are distinct
+check("XMLProcessingError is subclass of Exception",
+      issubclass(XMLProcessingError, Exception), True)
+check("FileIOError is subclass of Exception",
+      issubclass(FileIOError, Exception), True)
+check("All error types are distinct",
+      len({TranslationAPIError, XMLProcessingError, FileIOError}) == 3, True)
 
 # ===========================================================================
 # Summary
