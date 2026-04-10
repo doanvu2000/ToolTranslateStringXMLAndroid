@@ -196,6 +196,25 @@ def restore_translatables(text, ph_map):
 
 
 # ---------------------------------------------------------------------------
+# Comment-preserving XML parser
+# ---------------------------------------------------------------------------
+
+class CommentedTreeBuilder(ET.TreeBuilder):
+    """TreeBuilder subclass that preserves XML comments."""
+    def comment(self, data):
+        self.start(ET.Comment, {})
+        self.data(data)
+        self.end(ET.Comment)
+
+
+def parse_xml_with_comments(xml_text):
+    """Parse XML string preserving comments. Returns root Element."""
+    parser = ET.XMLParser(target=CommentedTreeBuilder())
+    parser.feed(xml_text)
+    return parser.close()
+
+
+# ---------------------------------------------------------------------------
 # HTML-aware inner-XML helpers
 # ---------------------------------------------------------------------------
 
@@ -330,7 +349,7 @@ def translate_language(thread_idx, iso_code, language_name, input_xml_path, res_
         with open(input_xml_path, 'r', encoding='utf-8') as f:
             raw_source = f.read()
         clean_source = preprocess_cdata(raw_source)
-        base_root = ET.fromstring(clean_source)
+        base_root = parse_xml_with_comments(clean_source)
 
         # base_keys stores inner XML (captures both plain text and HTML children)
         base_keys = {}
@@ -354,7 +373,7 @@ def translate_language(thread_idx, iso_code, language_name, input_xml_path, res_
             with open(dest_file, 'r', encoding='utf-8') as f:
                 dest_raw = f.read()
             dest_clean = preprocess_cdata(dest_raw)
-            target_root = ET.fromstring(dest_clean)
+            target_root = parse_xml_with_comments(dest_clean)
 
             for s in target_root.findall('string'):
                 name = s.get('name')
@@ -382,7 +401,7 @@ def translate_language(thread_idx, iso_code, language_name, input_xml_path, res_
                     deleted_count += 1
 
         # --- BƯỚC 3: TẠO FILE DỊCH MỚI (DỰA TRÊN CLONE CỦA GỐC) ---
-        new_root = ET.fromstring(clean_source)  # fresh copy from preprocessed source
+        new_root = parse_xml_with_comments(clean_source)  # fresh copy preserving comments
 
         all_elements = []
         for s in new_root.findall('string'):
@@ -590,7 +609,7 @@ def main(input_arg, lang_path=None, output_dir=None, threads=None, overrides_pat
     cdata_names = extract_cdata_names(source_xml_text)
 
     # Count translatable strings from source
-    source_tree = ET.fromstring(preprocess_cdata(source_xml_text))
+    source_tree = parse_xml_with_comments(preprocess_cdata(source_xml_text))
     translatable_count = sum(
         1 for s in source_tree.findall('string') if s.get('translatable') != 'false'
     ) + sum(

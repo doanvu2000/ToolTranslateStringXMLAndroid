@@ -464,6 +464,74 @@ finally:
 
 
 # ===========================================================================
+# Test 7: XML comments & attributes preserved in output
+# ===========================================================================
+print("\n── TEST 7: XML comments & attributes preserved ──────────────")
+
+COMMENT_SOURCE_XML = """\
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Section: identity -->
+    <string name="app_name" translatable="false">MyApp</string>
+
+    <!-- Section: greetings -->
+    <string name="txt_hello" formatted="false">Hello world</string>
+    <string name="txt_bye">Goodbye</string>
+
+    <!-- Section: arrays -->
+    <string-array name="colors">
+        <item>Red</item>
+        <item>Blue</item>
+    </string-array>
+</resources>
+"""
+
+tmp_dir, _, _, res_dir = setup_workspace()
+try:
+    source_path = os.path.join(os.path.dirname(res_dir), "res", "values", "strings.xml")
+    with open(source_path, "w", encoding="utf-8") as f:
+        f.write(COMMENT_SOURCE_XML)
+
+    lang1 = [{"isoCode": "vi", "name": "Vietnamese"}]
+    lang_path_1 = os.path.join(tmp_dir, "lang1.json")
+    with open(lang_path_1, "w", encoding="utf-8") as f:
+        json.dump(lang1, f)
+
+    with patch("translate.throttled_translate", side_effect=mock_translate):
+        with patch("translate.os.path.dirname", return_value=tmp_dir):
+            main(source_path, lang_path=lang_path_1, output_dir=res_dir, threads=1)
+
+    dest = os.path.join(res_dir, "values-vi", "strings.xml")
+    with open(dest, "r", encoding="utf-8") as f:
+        output_raw = f.read()
+
+    # Comments preserved
+    check_true("comments: 'Section: identity' in output",
+               "<!-- Section: identity -->" in output_raw)
+    check_true("comments: 'Section: greetings' in output",
+               "<!-- Section: greetings -->" in output_raw)
+    check_true("comments: 'Section: arrays' in output",
+               "<!-- Section: arrays -->" in output_raw)
+
+    # Attributes preserved
+    check_true("attributes: translatable='false' preserved",
+               'translatable="false"' in output_raw)
+    check_true("attributes: formatted='false' preserved",
+               'formatted="false"' in output_raw)
+
+    # Strings still translated correctly
+    root_vi = ET.fromstring(output_raw)
+    hello = get_string_text(root_vi, "txt_hello")
+    check_true("comments test: string translated", hello is not None and "[vi]" in hello)
+
+    app_name = get_string_text(root_vi, "app_name")
+    check("comments test: translatable=false not translated", app_name, "MyApp")
+
+finally:
+    shutil.rmtree(tmp_dir, ignore_errors=True)
+
+
+# ===========================================================================
 # Summary
 # ===========================================================================
 print("\n" + "=" * 60)

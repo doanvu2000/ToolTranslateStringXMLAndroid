@@ -7,9 +7,9 @@
 - [x] **Story 7 (P1)**: XML output validation — parse output after write, restore backup on failure, 3 integration tests
 
 - [x] **Story 9 (P1)**: Specific error handling — custom exceptions, classified catch blocks, error counting summary, 8 tests
+- [x] **Story 2 (P1)**: Preserve XML comments & attributes — CommentedTreeBuilder parser, 7 integration tests
 
 ## Up Next (P1)
-- [ ] **Story 2**: Preserve XML comments & attributes
 - [ ] **Story 3**: File logging
 - [ ] **Story 4**: Regional language variants (pt-BR, zh-TW)
 
