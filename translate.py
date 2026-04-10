@@ -837,7 +837,37 @@ if __name__ == "__main__":
         metavar="LANG",
         help="Xoá cache cho ngôn ngữ chỉ định (vd: --cache-clear-lang vi)",
     )
+    parser.add_argument(
+        "--config",
+        metavar="PATH",
+        help="Đường dẫn tới config JSON (mặc định: translate.config.json kế bên script)",
+    )
     args = parser.parse_args()
+
+    # Load config file: defaults that CLI args can override
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    config_path = args.config or os.path.join(base_dir, "translate.config.json")
+    config = load_json(config_path) if os.path.isfile(config_path) else {}
+    if config and not args.config:
+        print(f"⚙  Config loaded: {os.path.basename(config_path)}")
+
+    # Apply config defaults (CLI args take precedence)
+    if args.languages is None and "languages" in config:
+        args.languages = config["languages"]
+    if args.output is None and "output" in config:
+        args.output = config["output"]
+    if args.threads == MAX_THREADS and "threads" in config:
+        args.threads = config["threads"]
+    if args.overrides is None and "overrides" in config:
+        args.overrides = config["overrides"]
+    if args.log_file is None and "log_file" in config:
+        args.log_file = config["log_file"]
+    if not args.dry_run and config.get("dry_run", False):
+        args.dry_run = True
+    if args.only is None and "only" in config:
+        args.only = config["only"]
+    if args.report is None and "report" in config:
+        args.report = config["report"]
 
     # Handle cache commands
     if args.cache or args.cache_clear_lang:

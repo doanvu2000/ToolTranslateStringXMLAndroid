@@ -747,6 +747,34 @@ finally:
 
 
 # ===========================================================================
+# Test 13: Config file support
+# ===========================================================================
+print("\n── TEST 13: Config file support ─────────────────────────────")
+
+tmp_dir, source_path, lang_path, res_dir = setup_workspace()
+try:
+    # Create a config that sets --only to vi
+    config = {"only": ["vi"], "threads": 1}
+    config_path = os.path.join(tmp_dir, "translate.config.json")
+    with open(config_path, "w", encoding="utf-8") as f:
+        json.dump(config, f)
+
+    # Run with config (pass only= via main, simulating what CLI would do after loading config)
+    with patch("translate.throttled_translate", side_effect=mock_translate):
+        with patch("translate.os.path.dirname", return_value=tmp_dir):
+            main(source_path, lang_path=lang_path, output_dir=res_dir,
+                 threads=config["threads"], only=config["only"])
+
+    check_true("config: vi output exists (from config only=[vi])",
+               os.path.exists(os.path.join(res_dir, "values-vi", "strings.xml")))
+    check_true("config: fr NOT created (filtered by config)",
+               not os.path.exists(os.path.join(res_dir, "values-fr", "strings.xml")))
+
+finally:
+    shutil.rmtree(tmp_dir, ignore_errors=True)
+
+
+# ===========================================================================
 # Summary
 # ===========================================================================
 print("\n" + "=" * 60)

@@ -21,5 +21,6 @@
 
 - [x] **Story 12 (P2)**: Cache management CLI — `--cache stats/clear`, `--cache-clear-lang`, stats/clear/clear_language methods, 8 unit tests
 
-## Backlog (P2)
-- [ ] **Story 5**: Config file support
+- [x] **Story 5 (P2)**: Config file support — `--config` / auto-load `translate.config.json`, CLI overrides config, 2 integration tests
+
+## All stories completed!
