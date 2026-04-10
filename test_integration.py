@@ -414,6 +414,56 @@ finally:
 
 
 # ===========================================================================
+# Test 6: XML validation — corrupt output restores backup
+# ===========================================================================
+print("\n── TEST 6: XML output validation ───────────────────────────")
+
+from translate import postprocess_cdata as real_postprocess
+
+tmp_dir, source_path, lang_path, res_dir = setup_workspace()
+try:
+    # Pre-create a valid Vietnamese target (the "backup")
+    vi_dir = os.path.join(res_dir, "values-vi")
+    os.makedirs(vi_dir)
+    backup_xml = '<?xml version="1.0" encoding="utf-8"?>\n<resources><string name="txt_hello">Backup</string></resources>'
+    with open(os.path.join(vi_dir, "strings.xml"), "w", encoding="utf-8") as f:
+        f.write(backup_xml)
+
+    def corrupt_postprocess(dest_file, cdata_names):
+        """Simulate CDATA postprocess that produces invalid XML."""
+        real_postprocess(dest_file, cdata_names)
+        # Inject corruption: unclosed tag
+        with open(dest_file, "r", encoding="utf-8") as f:
+            content = f.read()
+        content = content.replace("</resources>", "<broken></resources>")  # unclosed
+        # Actually break it more:
+        content = content.replace("<broken>", "<broken")  # truly invalid XML
+        with open(dest_file, "w", encoding="utf-8") as f:
+            f.write(content)
+
+    lang1 = [{"isoCode": "vi", "name": "Vietnamese"}]
+    lang_path_1 = os.path.join(tmp_dir, "lang1.json")
+    with open(lang_path_1, "w", encoding="utf-8") as f:
+        json.dump(lang1, f)
+
+    with patch("translate.throttled_translate", side_effect=mock_translate):
+        with patch("translate.postprocess_cdata", side_effect=corrupt_postprocess):
+            with patch("translate.os.path.dirname", return_value=tmp_dir):
+                main(source_path, lang_path=lang_path_1, output_dir=res_dir, threads=1)
+
+    # The output should be the backup (restored after validation failure)
+    dest = os.path.join(vi_dir, "strings.xml")
+    check_true("validation: file still exists after corruption", os.path.exists(dest))
+    with open(dest, "r", encoding="utf-8") as f:
+        content = f.read()
+    check_true("validation: backup restored after corrupt output", "Backup" in content)
+    check_true("validation: corrupt content not in file", "<broken" not in content)
+
+finally:
+    shutil.rmtree(tmp_dir, ignore_errors=True)
+
+
+# ===========================================================================
 # Summary
 # ===========================================================================
 print("\n" + "=" * 60)

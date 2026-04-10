@@ -468,12 +468,32 @@ def translate_language(thread_idx, iso_code, language_name, input_xml_path, res_
 
         # --- BƯỚC 4: GHI FILE VÀO THƯ MỤC NGÔN NGỮ ĐÍCH ---
         os.makedirs(dest_folder, exist_ok=True)
+
+        # Back up existing file so we can restore on validation failure
+        backup_content = None
+        if os.path.exists(dest_file):
+            with open(dest_file, 'r', encoding='utf-8') as f:
+                backup_content = f.read()
+
         with open(dest_file, 'wb') as f:
             f.write(b'<?xml version="1.0" encoding="utf-8"?>\n')
             ET.ElementTree(new_root).write(f, encoding="utf-8", xml_declaration=False)
 
         # Re-wrap CDATA elements that were stripped by ET during parsing
         postprocess_cdata(dest_file, cdata_names)
+
+        # --- BƯỚC 5: VALIDATE OUTPUT XML ---
+        try:
+            with open(dest_file, 'r', encoding='utf-8') as f:
+                ET.fromstring(preprocess_cdata(f.read()))
+        except ET.ParseError as ve:
+            # Restore backup if available, otherwise remove broken file
+            if backup_content is not None:
+                with open(dest_file, 'w', encoding='utf-8') as f:
+                    f.write(backup_content)
+            else:
+                os.remove(dest_file)
+            raise RuntimeError(f"Output XML validation failed: {ve}") from ve
 
         lang_results[iso_code] = ('pass', language_name)
         with progress_lock:
