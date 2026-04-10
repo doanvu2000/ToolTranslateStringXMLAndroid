@@ -257,6 +257,62 @@ with tempfile.TemporaryDirectory() as tmp_dir:
         cache.close()
 
 # ===========================================================================
+# 7. Manual overrides
+# ===========================================================================
+print("\n── 7. MANUAL OVERRIDES ──────────────────────────────────────")
+
+overrides = {"AM": "AM", "PM": "PM", "Wi-Fi": "Wi-Fi"}
+
+# protect_translatables with overrides
+protected, ph_map = protect_translatables("Wake up at 7 AM and sleep at 10 PM", overrides=overrides)
+check("override: AM replaced with placeholder",
+      "AM" not in protected.replace("[[", "").replace("]]", ""),
+      True)
+check("override: PM replaced with placeholder",
+      "PM" not in protected.replace("[[", "").replace("]]", ""),
+      True)
+restored = restore_translatables(protected, ph_map)
+check("override: AM restored",
+      "AM" in restored, True)
+check("override: PM restored",
+      "PM" in restored, True)
+
+# overrides + format spec together
+protected2, ph_map2 = protect_translatables("Connect to Wi-Fi at %s", overrides=overrides)
+check("override + format spec: Wi-Fi protected",
+      "Wi-Fi" not in protected2.replace("[[", "").replace("]]", ""),
+      True)
+check("override + format spec: %s protected",
+      "%s" not in protected2,
+      True)
+restored2 = restore_translatables(protected2, ph_map2)
+check("override + format spec: both restored",
+      "Wi-Fi" in restored2 and "%s" in restored2,
+      True)
+
+# Case sensitivity: "am" should NOT be protected
+protected3, ph_map3 = protect_translatables("I am here at 9 AM", overrides=overrides)
+restored3 = restore_translatables(protected3, ph_map3)
+check("override: case-sensitive (am not matched, AM matched)",
+      "I am here" in restored3 and "9 AM" in restored3,
+      True)
+
+# translate_string with overrides (mock)
+with patch('translate.throttled_translate', side_effect=mock_translate):
+    result = translate_string("Hello world AM to PM", 'vi', overrides=overrides)
+    check("translate with overrides: AM preserved",
+          "AM" in result, True)
+    check("translate with overrides: PM preserved",
+          "PM" in result, True)
+    check("translate with overrides: text translated",
+          "Xin chào" in result, True)
+
+# No overrides (None) should work the same as before
+protected4, ph_map4 = protect_translatables("Hello AM world", overrides=None)
+check("no overrides: AM left in text",
+      "AM" in protected4, True)
+
+# ===========================================================================
 # Summary
 # ===========================================================================
 print("\n" + "=" * 60)

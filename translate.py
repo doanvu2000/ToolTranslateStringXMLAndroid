@@ -138,11 +138,15 @@ def escape_android_chars(text):
 # Format specifier + HTML tag protection
 # ---------------------------------------------------------------------------
 
-def protect_translatables(text):
+def protect_translatables(text, overrides=None):
     """
-    Replace HTML tags and Android format specifiers with [[N]] placeholders
-    so Google Translate won't mangle them.
+    Replace HTML tags, Android format specifiers, and manual override tokens
+    with [[N]] placeholders so Google Translate won't mangle them.
     Returns (protected_text, {placeholder: original}).
+
+    *overrides* is an optional dict {token: replacement} — matched tokens are
+    protected as placeholders and restored to the *replacement* value afterwards.
+    Matching is case-sensitive to avoid false positives (e.g. "AM" won't match "am").
     """
     counter = [0]
     ph_map = {}
@@ -153,8 +157,18 @@ def protect_translatables(text):
         counter[0] += 1
         return ph
 
-    # Order matters: protect HTML tags first, then format specs
-    protected = _HTML_TAG_RE.sub(make_ph, text)
+    # 1. Protect manual override tokens first (case-sensitive, whole-word)
+    protected = text
+    if overrides:
+        for token, replacement in overrides.items():
+            if token in protected:
+                ph = f'[[{counter[0]}]]'
+                ph_map[ph] = replacement
+                counter[0] += 1
+                protected = protected.replace(token, ph)
+
+    # 2. Protect HTML tags, then format specs
+    protected = _HTML_TAG_RE.sub(make_ph, protected)
     protected = _FORMAT_SPEC_RE.sub(make_ph, protected)
     return protected, ph_map
 
@@ -244,14 +258,14 @@ def postprocess_cdata(dest_file, cdata_names):
 # Core translate helper
 # ---------------------------------------------------------------------------
 
-def translate_string(raw_text, iso_code):
+def translate_string(raw_text, iso_code, overrides=None):
     """
-    Translate a string, preserving HTML tags and format specifiers.
+    Translate a string, preserving HTML tags, format specifiers, and override tokens.
     Returns raw translated text (NOT yet Android-escaped).
     """
     if not raw_text.strip():
         return raw_text
-    protected, ph_map = protect_translatables(raw_text)
+    protected, ph_map = protect_translatables(raw_text, overrides=overrides)
     try:
         translated = throttled_translate(protected, iso_code) or protected
     except Exception:
@@ -290,7 +304,7 @@ def refresh_console():
 # ---------------------------------------------------------------------------
 
 def translate_language(thread_idx, iso_code, language_name, input_xml_path, res_dir,
-                       translation_cache, cdata_names, lang_results):
+                       translation_cache, cdata_names, lang_results, overrides=None):
     android_iso = 'zh' if iso_code.startswith('zh') else iso_code
     dest_folder = os.path.join(res_dir, f"values-{android_iso}")
     dest_file = os.path.join(dest_folder, "strings.xml")
@@ -389,7 +403,7 @@ def translate_language(thread_idx, iso_code, language_name, input_xml_path, res_
                     update_count += 1
                 else:
                     try:
-                        translated = translate_string(raw_content, iso_code)
+                        translated = translate_string(raw_content, iso_code, overrides=overrides)
                         if not is_html:
                             translation_cache.set(iso_code, raw_content, translated)
                         # HTML and CDATA elements must NOT have Android char escaping
@@ -419,7 +433,7 @@ def translate_language(thread_idx, iso_code, language_name, input_xml_path, res_
                         update_count += 1
                     else:
                         try:
-                            translated = translate_string(raw_item, iso_code)
+                            translated = translate_string(raw_item, iso_code, overrides=overrides)
                             translation_cache.set(iso_code, raw_item, translated)
                             set_inner_xml(item, escape_android_chars(translated))
                             new_count += 1
@@ -443,7 +457,7 @@ def translate_language(thread_idx, iso_code, language_name, input_xml_path, res_
                         update_count += 1
                     else:
                         try:
-                            translated = translate_string(raw_item, iso_code)
+                            translated = translate_string(raw_item, iso_code, overrides=overrides)
                             translation_cache.set(iso_code, raw_item, translated)
                             set_inner_xml(item, escape_android_chars(translated))
                             new_count += 1
@@ -475,7 +489,7 @@ def translate_language(thread_idx, iso_code, language_name, input_xml_path, res_
             sys.stdout.write(f"\r❌ {language_name:12} | Lỗi: {str(e)[:60]}\033[K\n")
 
 
-def main(input_arg, lang_path=None, output_dir=None, threads=None):
+def main(input_arg, lang_path=None, output_dir=None, threads=None, overrides_path=None):
     input_xml = os.path.join(input_arg, "strings.xml") if os.path.isdir(input_arg) else input_arg
     base_dir = os.path.dirname(os.path.abspath(__file__))
 
@@ -498,6 +512,17 @@ def main(input_arg, lang_path=None, output_dir=None, threads=None):
         sys.exit(1)
 
     translation_cache = TranslationCache(cache_db_path)
+
+    # Load manual overrides (tokens that bypass translation, e.g. "AM" → "AM")
+    overrides = None
+    if overrides_path is None:
+        default_overrides = os.path.join(base_dir, "overrides.json")
+        if os.path.isfile(default_overrides):
+            overrides_path = default_overrides
+    if overrides_path:
+        overrides = load_json(overrides_path)
+        if overrides:
+            print(f"📋 Overrides: {len(overrides)} token(s) from {os.path.basename(overrides_path)}")
 
     # Detect CDATA element names once from the source file
     try:
@@ -545,6 +570,7 @@ def main(input_arg, lang_path=None, output_dir=None, threads=None):
                 translation_cache,
                 cdata_names,
                 lang_results,
+                overrides,
             )
     translation_cache.close()
 
@@ -594,5 +620,11 @@ if __name__ == "__main__":
         default=MAX_THREADS,
         help=f"Số luồng dịch song song (mặc định: {MAX_THREADS})",
     )
+    parser.add_argument(
+        "--overrides",
+        metavar="PATH",
+        help="Đường dẫn tới overrides.json — các token giữ nguyên không dịch (mặc định: overrides.json kế bên script)",
+    )
     args = parser.parse_args()
-    main(args.source, lang_path=args.languages, output_dir=args.output, threads=args.threads)
+    main(args.source, lang_path=args.languages, output_dir=args.output,
+         threads=args.threads, overrides_path=args.overrides)

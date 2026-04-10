@@ -359,6 +359,61 @@ finally:
 
 
 # ===========================================================================
+# Test 5: Manual overrides — AM/PM preserved through full pipeline
+# ===========================================================================
+print("\n── TEST 5: Manual overrides (AM/PM preserved) ───────────────")
+
+OVERRIDE_SOURCE_XML = """\
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="txt_time">From 9 AM to 5 PM</string>
+    <string name="txt_wifi">Connect to Wi-Fi network</string>
+    <string name="txt_plain">Hello world</string>
+</resources>
+"""
+
+tmp_dir, _, _, res_dir = setup_workspace()
+try:
+    # Write custom source
+    source_path = os.path.join(os.path.dirname(res_dir), "res", "values", "strings.xml")
+    with open(source_path, "w", encoding="utf-8") as f:
+        f.write(OVERRIDE_SOURCE_XML)
+
+    # Write overrides.json
+    overrides = {"AM": "AM", "PM": "PM", "Wi-Fi": "Wi-Fi"}
+    overrides_path = os.path.join(tmp_dir, "overrides.json")
+    with open(overrides_path, "w", encoding="utf-8") as f:
+        json.dump(overrides, f)
+
+    # Languages: Vietnamese only
+    lang1 = [{"isoCode": "vi", "name": "Vietnamese"}]
+    lang_path_1 = os.path.join(tmp_dir, "lang1.json")
+    with open(lang_path_1, "w", encoding="utf-8") as f:
+        json.dump(lang1, f)
+
+    with patch("translate.throttled_translate", side_effect=mock_translate):
+        with patch("translate.os.path.dirname", return_value=tmp_dir):
+            main(source_path, lang_path=lang_path_1, output_dir=res_dir,
+                 threads=1, overrides_path=overrides_path)
+
+    _, root_vi = read_output(res_dir, "vi")
+    check_true("overrides: output file created", root_vi is not None)
+
+    time_str = get_string_text(root_vi, "txt_time")
+    check_true("overrides: AM preserved in output", time_str is not None and "AM" in time_str)
+    check_true("overrides: PM preserved in output", time_str is not None and "PM" in time_str)
+
+    wifi_str = get_string_text(root_vi, "txt_wifi")
+    check_true("overrides: Wi-Fi preserved in output", wifi_str is not None and "Wi-Fi" in wifi_str)
+
+    plain = get_string_text(root_vi, "txt_plain")
+    check_true("overrides: non-override string still translated", plain is not None and "[vi]" in plain)
+
+finally:
+    shutil.rmtree(tmp_dir, ignore_errors=True)
+
+
+# ===========================================================================
 # Summary
 # ===========================================================================
 print("\n" + "=" * 60)
