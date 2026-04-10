@@ -362,7 +362,8 @@ def refresh_console():
 # ---------------------------------------------------------------------------
 
 def translate_language(thread_idx, iso_code, language_name, input_xml_path, res_dir,
-                       translation_cache, cdata_names, lang_results, overrides=None):
+                       translation_cache, cdata_names, lang_results, overrides=None,
+                       dry_run=False):
     # Map ISO codes to Android resource folder names (e.g. zh-CN → zh-rCN, pt-BR → pt-rBR)
     if '-' in iso_code:
         lang, region = iso_code.split('-', 1)
@@ -524,36 +525,38 @@ def translate_language(thread_idx, iso_code, language_name, input_xml_path, res_
                             logger.warning(f"[{iso_code}] '{raw_item[:30]}': {e}")
 
         # --- BƯỚC 4: GHI FILE VÀO THƯ MỤC NGÔN NGỮ ĐÍCH ---
-        os.makedirs(dest_folder, exist_ok=True)
+        if not dry_run:
+            os.makedirs(dest_folder, exist_ok=True)
 
-        # Back up existing file so we can restore on validation failure
-        backup_content = None
-        if os.path.exists(dest_file):
-            with open(dest_file, 'r', encoding='utf-8') as f:
-                backup_content = f.read()
+            # Back up existing file so we can restore on validation failure
+            backup_content = None
+            if os.path.exists(dest_file):
+                with open(dest_file, 'r', encoding='utf-8') as f:
+                    backup_content = f.read()
 
-        with open(dest_file, 'wb') as f:
-            f.write(b'<?xml version="1.0" encoding="utf-8"?>\n')
-            ET.ElementTree(new_root).write(f, encoding="utf-8", xml_declaration=False)
+            with open(dest_file, 'wb') as f:
+                f.write(b'<?xml version="1.0" encoding="utf-8"?>\n')
+                ET.ElementTree(new_root).write(f, encoding="utf-8", xml_declaration=False)
 
-        # Re-wrap CDATA elements that were stripped by ET during parsing
-        postprocess_cdata(dest_file, cdata_names)
+            # Re-wrap CDATA elements that were stripped by ET during parsing
+            postprocess_cdata(dest_file, cdata_names)
 
-        # --- BƯỚC 5: VALIDATE OUTPUT XML ---
-        try:
-            with open(dest_file, 'r', encoding='utf-8') as f:
-                ET.fromstring(preprocess_cdata(f.read()))
-        except ET.ParseError as ve:
-            # Restore backup if available, otherwise remove broken file
-            if backup_content is not None:
-                with open(dest_file, 'w', encoding='utf-8') as f:
-                    f.write(backup_content)
-            else:
-                os.remove(dest_file)
-            raise RuntimeError(f"Output XML validation failed: {ve}") from ve
+            # --- BƯỚC 5: VALIDATE OUTPUT XML ---
+            try:
+                with open(dest_file, 'r', encoding='utf-8') as f:
+                    ET.fromstring(preprocess_cdata(f.read()))
+            except ET.ParseError as ve:
+                # Restore backup if available, otherwise remove broken file
+                if backup_content is not None:
+                    with open(dest_file, 'w', encoding='utf-8') as f:
+                        f.write(backup_content)
+                else:
+                    os.remove(dest_file)
+                raise RuntimeError(f"Output XML validation failed: {ve}") from ve
 
         lang_results[iso_code] = ('pass', language_name)
-        msg = f"✅ {language_name:12} | Mới: {new_count:2} | Up: {update_count:2} | Cũ: {old_keep_count:2} | Xoá: {deleted_count:2}"
+        prefix = "🔍" if dry_run else "✅"
+        msg = f"{prefix} {language_name:12} | Mới: {new_count:2} | Up: {update_count:2} | Cũ: {old_keep_count:2} | Xoá: {deleted_count:2}"
         logger.debug(f"[{iso_code}] PASS new={new_count} cache={update_count} kept={old_keep_count} deleted={deleted_count}")
         with progress_lock:
             thread_status[thread_idx] = ""
@@ -593,7 +596,7 @@ def translate_language(thread_idx, iso_code, language_name, input_xml_path, res_
 
 
 def main(input_arg, lang_path=None, output_dir=None, threads=None, overrides_path=None,
-         log_file=None):
+         log_file=None, dry_run=False):
     setup_logging(log_file)
 
     input_xml = os.path.join(input_arg, "strings.xml") if os.path.isdir(input_arg) else input_arg
@@ -655,7 +658,8 @@ def main(input_arg, lang_path=None, output_dir=None, threads=None, overrides_pat
     # Worst-case estimate: all strings need API calls, rate limited globally
     estimated_seconds = translatable_count * num_languages * TRANSLATE_DELAY
 
-    logger.info(f"🚀 SYNC MODE (PROTECTED ORIGIN)")
+    mode_label = "🔍 DRY-RUN MODE" if dry_run else "🚀 SYNC MODE (PROTECTED ORIGIN)"
+    logger.info(mode_label)
     logger.info("=" * 80)
     logger.info(f"📊 Ngôn ngữ: {num_languages} | Luồng đồng thời: {threads} | Strings/ngôn ngữ: {translatable_count}")
     logger.info(f"⏱  Thời gian dự kiến (worst-case): {format_duration(estimated_seconds)}")
@@ -677,6 +681,7 @@ def main(input_arg, lang_path=None, output_dir=None, threads=None, overrides_pat
                 cdata_names,
                 lang_results,
                 overrides,
+                dry_run,
             )
     translation_cache.close()
 
@@ -748,6 +753,12 @@ if __name__ == "__main__":
         metavar="PATH",
         help="Ghi log chi tiết ra file (timestamps + DEBUG level)",
     )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Chạy thử — dịch và đếm nhưng không ghi file output",
+    )
     args = parser.parse_args()
     main(args.source, lang_path=args.languages, output_dir=args.output,
-         threads=args.threads, overrides_path=args.overrides, log_file=args.log_file)
+         threads=args.threads, overrides_path=args.overrides, log_file=args.log_file,
+         dry_run=args.dry_run)

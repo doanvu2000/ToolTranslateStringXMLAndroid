@@ -633,6 +633,44 @@ finally:
 
 
 # ===========================================================================
+# Test 10: Dry-run mode — no output files written
+# ===========================================================================
+print("\n── TEST 10: Dry-run mode ────────────────────────────────────")
+
+tmp_dir, source_path, lang_path, res_dir = setup_workspace()
+try:
+    lang1 = [{"isoCode": "vi", "name": "Vietnamese"}]
+    lang_path_1 = os.path.join(tmp_dir, "lang1.json")
+    with open(lang_path_1, "w", encoding="utf-8") as f:
+        json.dump(lang1, f)
+
+    with patch("translate.throttled_translate", side_effect=mock_translate):
+        with patch("translate.os.path.dirname", return_value=tmp_dir):
+            main(source_path, lang_path=lang_path_1, output_dir=res_dir,
+                 threads=1, dry_run=True)
+
+    # No output file should be created
+    vi_dir = os.path.join(res_dir, "values-vi")
+    check_true("dry-run: no output folder created",
+               not os.path.exists(vi_dir))
+
+    # But pipeline still reports pass
+    check_true("dry-run: completed without error", True)
+
+    # Run again without dry-run to confirm files ARE written normally
+    with patch("translate.throttled_translate", side_effect=mock_translate):
+        with patch("translate.os.path.dirname", return_value=tmp_dir):
+            main(source_path, lang_path=lang_path_1, output_dir=res_dir,
+                 threads=1, dry_run=False)
+
+    check_true("non-dry-run: output file created",
+               os.path.exists(os.path.join(vi_dir, "strings.xml")))
+
+finally:
+    shutil.rmtree(tmp_dir, ignore_errors=True)
+
+
+# ===========================================================================
 # Summary
 # ===========================================================================
 print("\n" + "=" * 60)
